@@ -1,0 +1,327 @@
+{$I Base.pas}
+
+type
+  EWalkStyle = (wsRegular, wsSPS);
+  TOnWalkEvent = procedure(Sender:TObject; myPos: TPoint; out keepGoing: Boolean);
+  TOnClickEvent = function(Sender:TObject; var Box: TBox): Boolean;
+  TWhileWalkingEvent  = procedure(Sender:TObject; myPos: TPoint);
+  
+  TRSWalker = record
+    worldMap, worldSample: T2DIntArray;
+    walkStyle: EWalkStyle;
+    skipClose: Int32;
+    anyAngle: Boolean;
+    minRunEnergy: Int32;
+    
+    finder: TRSPosFinder;
+    localMap: T2DIntArray;
+    global:TPoint;
+    
+    onClickEvent:TOnClickEvent;
+    onWalkEvent: TOnWalkEvent;
+    onMoveEvent: TWhileWalkingEvent;
+  end;
+
+
+procedure TRSWalker.Init(world:String; PID:Int32);
+var
+  BMP:Integer;
+begin
+  with self do
+  begin
+    finder.Init(PID);
+    finder.scanRatio := 8;
+    onWalkEvent := nil;
+    
+    skipClose := 10;
+    minRunEnergy := 20;
+    
+    BMP := LoadBitmap(world);
+    worldMap := BitmapToMatrix(BMP);
+    FreeBitmap(BMP);
+
+    worldSample := w_imSample(worldMap, finder.scanRatio);
+  end;
+end;
+
+
+procedure TRSWalker.Free();
+begin
+  finder.Free();
+  setLength(WorldMap, 0);
+  setLength(worldSample, 0);
+  setLength(localMap, 0);
+end;
+
+
+function TRSWalker.FindChunk(pt:TPoint; area:Int32=100): TPoint;
+var
+  W,H:Int32;
+  loc,locSample:T2DIntArray;
+  corr:T2DFloatArray;
+  B:TBox;
+  shift:TPoint;
+begin
+  B := [pt.x-area, pt.y-area, pt.x+area, pt.y+area];
+  B := [max(52,B.x1),max(52,B.y1),min(459,B.x2),min(459,B.y2)];
+  loc := w_getArea(self.localMap, b.x1,b.y1,b.x2,b.y2);
+  locSample := w_imSample(loc, finder.scanRatio);
+  shift := Point(pt.x-B.x1, pt.y-B.y1);
+
+  corr   := w_MatchTemplate(worldSample, locSample, finder.matchAlgo);
+  Result := w_ArgMax(corr);
+  Result := finder.findPeakAround(
+    worldMap,
+    loc,
+    Point(Result.x*finder.scanRatio, result.y*finder.scanRatio),
+    20
+  );
+
+  Result.x := (Result.x + shift.x) - pt.x;
+  Result.y := (Result.y + shift.y) - pt.y;
+end;
+
+
+procedure TRSWalker.UpdateGlobalStart(localPt:TPoint);
+var sim:Double;
+begin
+  if length(self.localMap) = length(finder.localMap) then
+    sim := w_imCompareAt(finder.localMap, self.localMap, Point(0,0), 1);
+  if sim < 1 then
+  begin
+    self.localMap := finder.localMap;
+    Self.Global := self.FindChunk(localPt);
+  end;
+end;
+
+
+function TRSWalker._GetPos(): TPoint;
+var
+  localPt:TPoint;
+begin
+  localPt := finder.GetLocalPos(self.anyAngle);
+  self.UpdateGlobalStart(localPt);
+  Result.x := localPt.x + self.global.x;
+  Result.y := localPt.y + self.global.y;
+end;
+
+
+function TRSWalker._GetPosCustom(): TPoint;
+var
+  feat: T2DFeatPointArray;
+  BMP: Integer;
+  MM,test: T2DIntArray;
+  best: TFeaturePoint;
+  compRad: Double = 0;
+begin
+  if self.anyAngle then
+    compRad := w_GetCompassAngle(False);
+
+  BMP := BitmapFromClient(WMM_OUTER.x1,WMM_OUTER.y1,WMM_OUTER.x2,WMM_OUTER.y2);
+  MM := BitmapToMatrix(BMP);
+  FreeBitmap(BMP);
+
+  feat := finder.Correlate(MM, self.worldSample, compRad);
+  best := finder.FindPeak(feat);
+
+  //find local peak:
+  test := w_imRotate(MM, radians(best.angle) + compRad, False,True);
+  test := w_getArea(test, WMM_INNER.x1,WMM_INNER.y1,WMM_INNER.x2,WMM_INNER.y2);
+  Result := finder.FindPeakAround(
+    self.worldMap,
+    test,
+    Point(best.x,best.y),
+    20
+  );
+
+  Result.x += ((WMM_INNER.x2-WMM_INNER.x1+1) div 2) + WMM_OFFSET.x;
+  Result.y += ((WMM_INNER.y2-WMM_INNER.y1+1) div 2) + WMM_OFFSET.y;
+  finder.mmOffset := best.angle;
+end;
+
+
+(*
+ Returns our current position.
+*)
+function TRSWalker.GetMyPos(): TPoint;
+begin
+  if finder.process > 0 then
+    Result := self._getPos()
+  else
+    Result := self._getPosCustom();
+end;
+
+
+(*
+ Outputes a point on the minimap position from current pos to `pt`
+ Returns True if it's within the minimap area
+*)
+function TRSWalker.PointToMM(myPos, pt: TPoint; out mmPos:TPoint): Boolean;
+begin
+  Result := False;
+  if (w_Distance(myPos, pt) < 66) then
+  begin
+    mmPos.x := (pt.x - myPos.x);
+    mmPos.y := (pt.y - myPos.y);
+    mmPos   := RotatePoint(mmPos, radians(finder.mmOffset), 0,0);
+    mmPos.x += WMM_CX;
+    mmPos.y += WMM_CY;
+    Result := True;
+  end;
+end;
+
+(*
+  Takes the position we are walking to in both it's forms:
+  - mmPt (position on minimap)
+  - worldPt (position in the world)
+  Expects lookup to be fast, if this shows to not be the case, it's better to
+  replace ``Distance(Self.GetPos(), worldPt)`` with distnace-check to the flag.
+  
+  Two hooks are called here:
+  - onClickEvent(self,box)
+  - onMoveEvent(self,pos)
+*)
+procedure TRSWalker.WalkToPos(mmPt, worldPt:TPoint; doRand:Boolean=False);
+var
+  t,r:UInt32;
+  box:TBox;
+  pos:TPoint;
+begin
+  if self.anyAngle then
+    mmPt := RotatePoint(mmpt, w_GetCompassAngle(False), WMM_CX,WMM_CY);
+  
+  if (distance(mmPt,Point(WMM_CX,WMM_CY)) <= 60) and doRand then
+    r := 5;
+  box := [mmPt.x-r, mmPt.y-r, mmPt.x+r, mmPt.y+r];
+    
+  if Assigned(@self.onClickEvent) then
+  begin
+    if not(self.onClickEvent(@self, box)) then
+      w_clickMouse(box, mouse_left);
+  end else
+    w_clickMouse(box, mouse_left);
+    
+  t := GetTimeRunning() + 20000;
+  repeat
+    w_QuickEnableRun(self.minRunEnergy);
+    
+    pos := self.GetMyPos();
+    if w_Distance(pos, worldPt) < self.skipClose then
+      Break;
+
+    if Assigned(@self.onMoveEvent) then
+      self.onMoveEvent(@self, pos);
+  until not(w_FlagPresent()) or (GetTimeRunning() > t);
+end;
+
+
+(*
+  Simple method to do 1 step on the minimap.
+*)
+procedure TRSWalker.WalkToPos(worldPos:TPoint; waitFlag:Boolean=True); overload;
+var
+  mmPt:TPoint;
+  t:UInt32;
+begin
+  if not Self.PointToMM(self.GetMyPos(), worldPos, mmPt) then
+    Exit();
+  
+  if self.anyAngle then
+    mmPt := RotatePoint(mmpt, w_GetCompassAngle(False), WMM_CX,WMM_CY);
+  
+  w_clickMouse([mmPt.x,mmPt.y,mmPt.x,mmPt.y], mouse_left);
+  if waitFlag then
+  begin
+    t := GetTimeRunning() + 20000;
+    repeat
+      w_QuickEnableRun(self.minRunEnergy);
+    until not(w_FlagPresent()) or (GetTimeRunning() > t);
+  end;
+end;
+
+(*
+ 
+*)
+function TRSWalker.WalkPath(Path: TPointArray): Boolean;
+var
+  i,H,tmp:Int32;
+  t:UInt32;
+  mmPt,myPos,prev:TPoint;
+  keepGoing: Boolean;
+  
+  function RandomizeRunEnergy(e:Int32):Int32;
+  begin
+    if e > 100 then Exit();
+    Result := Random(max(5,e-10), e+10);
+  end;
+  
+begin
+  tmp := self.minRunEnergy;
+  
+  H := High(Path);
+  i := 0;
+  case self.walkStyle of
+    wsRegular://simple walking - can't start mid path.
+      begin
+        t := GetTimeRunning() + 20000 + random(5000);
+        while (i < H) and (GetTimeRunning() < t)  do
+        begin
+          self.minRunEnergy := RandomizeRunEnergy(self.minRunEnergy);
+          myPos := Self.GetMyPos();
+          while (i < H) and (self.PointToMM(myPos, path[i+1], mmPt)) do
+            inc(i);
+
+          if self.PointToMM(myPos, path[i], mmPt) then
+          begin
+            if Assigned(@self.onWalkEvent) then 
+            begin
+              self.onWalkEvent(@self, myPos, keepGoing);
+              if not(keepGoing) then
+                Exit(True);
+            end;
+            
+            self.WalkToPos(mmPt, path[i], i<>h);
+            t := GetTimeRunning() + 20000 + random(5000);
+          end;
+        end;
+        Result := (i = H);
+      end;
+    wsSPS://mimics the way SPS walkPath works
+      begin
+        t := GetTimeRunning() + 20000 + random(5000);
+        while (GetTimeRunning() < t) do
+        begin
+          self.minRunEnergy := RandomizeRunEnergy(self.minRunEnergy);
+          myPos := Self.GetMyPos();
+          for i:=H downto 0 do
+          begin
+            if not Self.PointToMM(myPos, path[i], mmPt) then
+              Continue;
+            
+            if Assigned(@self.onWalkEvent) then 
+            begin
+              self.onWalkEvent(@self, myPos, keepGoing);
+              if not(keepGoing) then
+                Exit(True);
+            end;
+            
+            self.WalkToPos(mmPt, path[i], i<>h);
+            t := GetTimeRunning() + 20000 + random(5000);
+ 	          Break;
+          end;
+          Result := (i = H);
+          if Result then Break;
+        end;
+      end;
+  end;
+
+  if Result then
+  begin
+    Wait(random(200,600));
+    Self.pointToMM(Self.GetMyPos(), path[h], mmPt);
+    if w_Distance(Point(WMM_CX,WMM_CY), mmPt) > 10 then
+      self.WalkToPos(mmPt, path[h]);
+  end;
+  
+  self.minRunEnergy := tmp;
+end;

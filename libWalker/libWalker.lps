@@ -1,0 +1,342 @@
+<?xml version="1.0"?>
+<CONFIG>
+  <ProjectSession>
+    <PathDelim Value="\"/>
+    <Version Value="9"/>
+    <BuildModes Active="Default"/>
+    <Units Count="26">
+      <Unit0>
+        <Filename Value="libWalker.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="libWalker"/>
+        <EditorIndex Value="0"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="45"/>
+        <CursorPos X="25" Y="66"/>
+        <UsageCount Value="56"/>
+        <Loaded Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="FastShareMem.pas"/>
+        <UnitName Value="FastShareMem"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="12" Y="10"/>
+        <UsageCount Value="8"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="C:\lazarus32\fpc\2.6.2\source\rtl\win\wininc\func.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="696"/>
+        <CursorPos X="10" Y="714"/>
+        <UsageCount Value="9"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="C:\lazarus32\fpc\2.6.2\source\rtl\win\wininc\struct.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="468"/>
+        <CursorPos X="19" Y="478"/>
+        <UsageCount Value="8"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="C:\lazarus32\fpc\2.6.2\source\rtl\win\wininc\ascdef.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="310"/>
+        <CursorPos X="10" Y="329"/>
+        <UsageCount Value="8"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="C:\lazarus32\fpc\2.6.2\source\packages\winunits-base\src\shellapi.pp"/>
+        <UnitName Value="ShellApi"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1401"/>
+        <CursorPos X="36" Y="1413"/>
+        <UsageCount Value="8"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="xbitmap.pas"/>
+        <UnitName Value="xbitmap"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="26" Y="15"/>
+        <UsageCount Value="9"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="C:\lazarus32\fpc\2.6.2\source\rtl\win\wininc\base.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="184"/>
+        <CursorPos X="6" Y="203"/>
+        <UsageCount Value="8"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="C:\lazarus32\fpc\2.6.2\source\rtl\inc\systemh.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="309"/>
+        <CursorPos X="3" Y="328"/>
+        <UsageCount Value="8"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="C:\lazarus32\fpc\2.6.2\source\rtl\inc\variants.pp"/>
+        <UnitName Value="variants"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="3647"/>
+        <CursorPos X="14" Y="3666"/>
+        <UsageCount Value="8"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="C:\lazarus32\lcl\lazcanvas.pas"/>
+        <UnitName Value="lazcanvas"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="671"/>
+        <CursorPos X="8" Y="690"/>
+        <UsageCount Value="8"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="C:\lazarus\fpc\2.6.2\source\rtl\objpas\math.pp"/>
+        <UnitName Value="math"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="16"/>
+        <CursorPos X="12" Y="32"/>
+        <UsageCount Value="9"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="C:\lazarus\fpc\2.6.2\source\rtl\inc\mathh.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="51"/>
+        <CursorPos X="30" Y="72"/>
+        <UsageCount Value="9"/>
+      </Unit12>
+      <Unit13>
+        <Filename Value="lptypes.pas"/>
+        <UnitName Value="lptypes"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="640"/>
+        <CursorPos X="7" Y="665"/>
+        <UsageCount Value="9"/>
+      </Unit13>
+      <Unit14>
+        <Filename Value="HashMap.pas"/>
+        <UnitName Value="HashMap"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="367"/>
+        <CursorPos X="57" Y="397"/>
+        <UsageCount Value="9"/>
+      </Unit14>
+      <Unit15>
+        <Filename Value="CoreTypes.pas"/>
+        <UnitName Value="CoreTypes"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="26" Y="46"/>
+        <UsageCount Value="9"/>
+      </Unit15>
+      <Unit16>
+        <Filename Value="C:\lazarus\fpc\2.6.2\source\rtl\win\wininc\func.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="72"/>
+        <CursorPos X="24" Y="95"/>
+        <UsageCount Value="8"/>
+      </Unit16>
+      <Unit17>
+        <Filename Value="C:\lazarus\fpc\2.6.2\source\rtl\win\wininc\base.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="83"/>
+        <CursorPos X="6" Y="99"/>
+        <UsageCount Value="9"/>
+      </Unit17>
+      <Unit18>
+        <Filename Value="C:\lazarus\fpc\2.6.2\source\rtl\inc\systemh.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="243"/>
+        <CursorPos X="12" Y="268"/>
+        <UsageCount Value="13"/>
+      </Unit18>
+      <Unit19>
+        <Filename Value="C:\lazarus\fpc\2.6.2\source\rtl\win\wininc\redef.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="891"/>
+        <CursorPos X="94" Y="912"/>
+        <UsageCount Value="8"/>
+      </Unit19>
+      <Unit20>
+        <Filename Value="C:\lazarus\fpc\2.6.2\source\rtl\win\wininc\struct.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="6313"/>
+        <CursorPos X="24" Y="6330"/>
+        <UsageCount Value="8"/>
+      </Unit20>
+      <Unit21>
+        <Filename Value="C:\lazarus\fpc\2.6.2\source\rtl\win\sysosh.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="5"/>
+        <CursorPos X="3" Y="22"/>
+        <UsageCount Value="9"/>
+      </Unit21>
+      <Unit22>
+        <Filename Value="Utils.pas"/>
+        <UnitName Value="Utils"/>
+        <EditorIndex Value="3"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="28"/>
+        <CursorPos X="38" Y="45"/>
+        <UsageCount Value="12"/>
+        <Loaded Value="True"/>
+      </Unit22>
+      <Unit23>
+        <Filename Value="MemScan.pas"/>
+        <UnitName Value="MemScan"/>
+        <EditorIndex Value="1"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="20" Y="14"/>
+        <UsageCount Value="11"/>
+        <Loaded Value="True"/>
+      </Unit23>
+      <Unit24>
+        <Filename Value="SimbaPlugin.inc"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="2"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="43"/>
+        <CursorPos X="64" Y="64"/>
+        <UsageCount Value="12"/>
+        <Loaded Value="True"/>
+      </Unit24>
+      <Unit25>
+        <Filename Value="SimpleHeap.pas"/>
+        <UnitName Value="SimpleHeap"/>
+        <EditorIndex Value="4"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="6" Y="12"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit25>
+    </Units>
+    <General>
+      <ActiveWindowIndexAtStart Value="0"/>
+    </General>
+    <JumpHistory Count="30" HistoryIndex="29">
+      <Position1>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="73" Column="60" TopLine="54"/>
+      </Position1>
+      <Position2>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="24" Column="8" TopLine="18"/>
+      </Position2>
+      <Position3>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="57" Column="8" TopLine="34"/>
+      </Position3>
+      <Position4>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="50" Column="31" TopLine="29"/>
+      </Position4>
+      <Position5>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="52" Column="30" TopLine="39"/>
+      </Position5>
+      <Position6>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="60" Column="98" TopLine="44"/>
+      </Position6>
+      <Position7>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="68" Column="61" TopLine="47"/>
+      </Position7>
+      <Position8>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="61" Column="13" TopLine="51"/>
+      </Position8>
+      <Position9>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="254" Column="55" TopLine="238"/>
+      </Position9>
+      <Position10>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="196" Column="29" TopLine="188"/>
+      </Position10>
+      <Position11>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="211" Column="34" TopLine="187"/>
+      </Position11>
+      <Position12>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="37" Column="56" TopLine="21"/>
+      </Position12>
+      <Position13>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="30" Column="63" TopLine="26"/>
+      </Position13>
+      <Position14>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="45" Column="7" TopLine="33"/>
+      </Position14>
+      <Position15>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="30" Column="12" TopLine="16"/>
+      </Position15>
+      <Position16>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="51" Column="10" TopLine="31"/>
+      </Position16>
+      <Position17>
+        <Filename Value="Utils.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
+      </Position17>
+      <Position18>
+        <Filename Value="libWalker.lpr"/>
+        <Caret Line="73" Column="31" TopLine="4"/>
+      </Position18>
+      <Position19>
+        <Filename Value="MemScan.pas"/>
+        <Caret Line="71" Column="36" TopLine="52"/>
+      </Position19>
+      <Position20>
+        <Filename Value="SimbaPlugin.inc"/>
+        <Caret Line="44" Column="60" TopLine="28"/>
+      </Position20>
+      <Position21>
+        <Filename Value="SimbaPlugin.inc"/>
+        <Caret Line="68" Column="28" TopLine="46"/>
+      </Position21>
+      <Position22>
+        <Filename Value="MemScan.pas"/>
+        <Caret Line="43" Column="53" TopLine="323"/>
+      </Position22>
+      <Position23>
+        <Filename Value="MemScan.pas"/>
+        <Caret Line="17" Column="11" TopLine="1"/>
+      </Position23>
+      <Position24>
+        <Filename Value="MemScan.pas"/>
+        <Caret Line="315" Column="59" TopLine="298"/>
+      </Position24>
+      <Position25>
+        <Filename Value="MemScan.pas"/>
+        <Caret Line="309" Column="102" TopLine="293"/>
+      </Position25>
+      <Position26>
+        <Filename Value="MemScan.pas"/>
+        <Caret Line="235" Column="30" TopLine="219"/>
+      </Position26>
+      <Position27>
+        <Filename Value="Utils.pas"/>
+        <Caret Line="214" Column="23" TopLine="473"/>
+      </Position27>
+      <Position28>
+        <Filename Value="SimpleHeap.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
+      </Position28>
+      <Position29>
+        <Filename Value="Utils.pas"/>
+        <Caret Line="127" Column="6" TopLine="110"/>
+      </Position29>
+      <Position30>
+        <Filename Value="MemScan.pas"/>
+        <Caret Line="102" Column="8" TopLine="85"/>
+      </Position30>
+    </JumpHistory>
+  </ProjectSession>
+</CONFIG>
