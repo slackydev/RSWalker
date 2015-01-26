@@ -18,7 +18,7 @@ begin
   RSW.Init('Includes\OSRWalker\maps\world.png', w_getClientPID());
   
   AddOnTerminate(@RSW.Free);       //important
-  RSW.anyAngle  := True;           //walk at any angle (else it's only compass(north)-only)
+  RSW.anyAngle  := True;           //walk at any angle (else it's compass(north)-only)
   
   //a path - starts at varroc-east bank and walks a couple of steps
   path := [Point(2127, 2099), Point(2101, 2085), Point(2068, 2085), Point(2035, 2082)];
