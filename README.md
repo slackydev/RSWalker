@@ -3,9 +3,13 @@ RSWalker
 This library is ment for Simba, as a tool for "map-walking" in *Oldschool Runescape*.
 RSWalker offers high accuracy, and is very quickly able to determine your current position in the world map.
 
+RSWalker doesn't rely on any particular include, so can be made to work with other includes then SRL.
+For RSWalker to work with your include you need to hook `onClickEvent` or override `w_clickMouse`.
+
 
 Example
 --------
+Example requires https://github.com/Olly-/SRL
 
 ```pascal
 {$I SRL/OSR.simba}
