@@ -1,10 +1,10 @@
 RSWalker
 ========
-This library is ment for Simba, as a tool for "map-walking" in *Oldschool Runescape*.
-RSWalker offers high accuracy, and is very quickly able to determine your current position in the world map.
+This library is ment for Simba, it gives your bot "map-walking"-functionality in *Oldschool Runescape*.
+RSWalker is highly accuracte, and very quickly able to determine your current position in the world map.
 
-RSWalker doesn't rely on any particular include, so can be made to work with other includes then SRL.
-For RSWalker to work with your include you need to hook `onClickEvent` or override `w_clickMouse`.
+RSWalker doesn't rely on any particular include, so it can be made to work with other includes than SRL.
+For RSWalker to work with your include you need to "hook" `onClickEvent` or override `w_clickMouse`.
 
 
 Example
