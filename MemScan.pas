@@ -62,7 +62,7 @@ begin
           if ExitOnFirst then
             Exit(Matches[i]+4)
           else
-            tmp += Matches[i]+4;
+            tmp := tmp + Matches[i]+4;
       end;
     end;
   end;
