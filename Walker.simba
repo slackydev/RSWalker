@@ -190,7 +190,7 @@ begin
   if self.anyAngle then
     mmPt := RotatePoint(mmpt, w_GetCompassAngle(False), WMM_CX,WMM_CY);
   
-  if (distance(mmPt,Point(WMM_CX,WMM_CY)) <= 60) and doRand then
+  if (w_distance(mmPt,Point(WMM_CX,WMM_CY)) <= 60) and doRand then
     r := 5;
   box := [mmPt.x-r, mmPt.y-r, mmPt.x+r, mmPt.y+r];
     
