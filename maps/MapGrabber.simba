@@ -1,0 +1,62 @@
+program MapGrabber;
+{$I OSRWalker/Walker.simba}
+
+(*
+  Change `PATH` to a folder where you want to save pieces.
+  Target Runescape, press play.
+  - Press Enter to save a piece
+  - image will refresh every 2 sec or so..
+*)
+
+const
+  PATH := 'Includes\Maps\';  //change it to where u wanna save
+  PREFIX := 'mine_';
+
+{$ifndecl ShowBitmap}
+procedure ShowBitmap(bmp: Integer);
+var w,h: Int32;
+begin
+  GetBitmapSize(bmp, w,h);
+  DisplayDebugImgWindow(w,h);
+  DrawBitmapDebugImg(bmp);
+end;
+{$endif}
+
+function WaitKey(k:TIntegerArray; maxWait:UInt32): Int32;
+var t:UInt32;
+begin
+  t := GetTimeRunning() + maxWait;
+  repeat
+    Wait(10);
+    if isKeyDown(k[0]) then Exit(k[0]);
+    if isKeyDown(k[1]) then Exit(k[1]);
+  until GetTimeRunning() - t > 0;
+end;
+
+var
+  finder:TRSPosFinder;
+  action,i:Int32;
+  bmp:Integer;
+begin
+  finder.Init(w_GetClientPID());
+  if not DirectoryExists(PATH) then
+    RaiseException('"'+PATH+'" doesn''t exist');
+
+  while 1 do
+  begin
+    finder.GetLocalPos();
+    bmp := CreateBitmap(1,1);
+    DrawMatrixBitmap(bmp, finder.localMap);
+    CropBitmap(bmp, 52,52, 511-52,511-52);
+    ShowBitmap(bmp);
+    Wait(100);
+    action := WaitKey([VK_RETURN,VK_BACK], 1500);
+    if (Action = VK_RETURN) then
+    begin
+      SaveBitmap(bmp,PATH+PREFIX+ToStr(i)+'.png');
+      WriteLn('Saved '+PATH+PREFIX+ToStr(i)+'.png');
+      inc(i);
+    end;
+    FreeBitmap(bmp);
+  end;
+end.

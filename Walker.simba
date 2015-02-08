@@ -26,17 +26,22 @@ type
 procedure TRSWalker.Init(world:String; PID:Int32);
 var
   BMP:Integer;
+  path:String;
 begin
   with self do
   begin
     finder.Init(PID);
     finder.scanRatio := 8;
+    onClickEvent := nil;
     onWalkEvent := nil;
-    
+    onMoveEvent := nil;
+
     skipClose := 10;
     minRunEnergy := 20;
-    
-    BMP := LoadBitmap(world);
+    path := world;
+    if not FileExists(path) then
+      path := IncludePath+'OSRWalker\maps\'+path;
+    BMP := LoadBitmap(path);
     worldMap := BitmapToMatrix(BMP);
     FreeBitmap(BMP);
 
@@ -244,9 +249,9 @@ end;
 *)
 function TRSWalker.WalkPath(Path: TPointArray): Boolean;
 var
-  i,H,tmp:Int32;
+  i,prev,h,tmp,attempts:Int32;
   t:UInt32;
-  mmPt,myPos,prev:TPoint;
+  mmPt,myPos:TPoint;
   keepGoing: Boolean;
   
   function RandomizeRunEnergy(e:Int32):Int32;
@@ -264,12 +269,19 @@ begin
     wsRegular://simple walking - can't start mid path.
       begin
         t := GetTimeRunning() + 20000 + random(5000);
+        attempts := 0;
         while (i < H) and (GetTimeRunning() < t)  do
         begin
           self.minRunEnergy := RandomizeRunEnergy(self.minRunEnergy);
           myPos := Self.GetMyPos();
           while (i < H) and (self.PointToMM(myPos, path[i+1], mmPt)) do
             inc(i);
+
+          if prev = i then begin
+            inc(attempts);
+            if attempts > 5 then Exit(False);
+          end else
+            attempts := 0;
 
           if self.PointToMM(myPos, path[i], mmPt) then
           begin
@@ -281,6 +293,7 @@ begin
             end;
             
             self.WalkToPos(mmPt, path[i], i<>h);
+            prev := i;
             t := GetTimeRunning() + 20000 + random(5000);
           end;
         end;
@@ -289,6 +302,7 @@ begin
     wsSPS://mimics the way SPS walkPath works
       begin
         t := GetTimeRunning() + 20000 + random(5000);
+        attempts := 0;
         while (GetTimeRunning() < t) do
         begin
           self.minRunEnergy := RandomizeRunEnergy(self.minRunEnergy);
@@ -297,7 +311,13 @@ begin
           begin
             if not Self.PointToMM(myPos, path[i], mmPt) then
               Continue;
-            
+
+            if prev = i then begin
+              inc(attempts);
+              if attempts > 5 then Exit(False);
+            end else
+              attempts := 0;
+
             if Assigned(@self.onWalkEvent) then 
             begin
               self.onWalkEvent(@self, myPos, keepGoing);
@@ -306,6 +326,7 @@ begin
             end;
             
             self.WalkToPos(mmPt, path[i], i<>h);
+            prev := i;
             t := GetTimeRunning() + 20000 + random(5000);
  	          Break;
           end;
