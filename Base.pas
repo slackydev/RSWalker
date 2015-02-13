@@ -1,3 +1,7 @@
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=]
+ Copyright (c) 2013, Jarl K. <Slacky> Holta || http://github.com/WarPie
+ All rights reserved.
+[=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 {$loadlib ../Includes/OSRWalker/libWalker.dll}
 {$I matchTempl.pas}
 {$I MemScan.pas}
@@ -28,8 +32,12 @@ type
     matchAlgo: Byte;
     scanRatio: Byte;
     numSamples:Int32;
+    
+    //from last correlation
     mmOffset: Int32;
-
+    topMatch: Single;
+    
+    //mem-stuff
     process:Int32;
     scan:TMemScan;
     addr:PtrUInt;
@@ -137,7 +145,7 @@ begin
     scanRatio := 8;
     numSamples := 100;
     process := PID;
-
+    
     if PID >= 0 then scan.Init(process);
     addr := 0;
     bufferW := 512;
@@ -296,6 +304,8 @@ begin
 
   Result.x += ((WMM_INNER.x2-WMM_INNER.x1+1) div 2) + WMM_OFFSET.x;
   Result.y += ((WMM_INNER.y2-WMM_INNER.y1+1) div 2) + WMM_OFFSET.y;
+  
+  Self.topMatch := best.value;
   Self.mmOffset := best.angle;
 end;
 

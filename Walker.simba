@@ -1,3 +1,7 @@
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=]
+ Copyright (c) 2013, Jarl K. <Slacky> Holta || http://github.com/WarPie
+ All rights reserved.
+[=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 {$I Base.pas}
 
 type
@@ -12,6 +16,7 @@ type
     skipClose: Int32;
     anyAngle: Boolean;
     minRunEnergy: Int32;
+    minMatch: Single;
     
     finder: TRSPosFinder;
     localMap: T2DIntArray;
@@ -32,10 +37,12 @@ begin
   begin
     finder.Init(PID);
     finder.scanRatio := 8;
+
     onClickEvent := nil;
     onWalkEvent := nil;
     onMoveEvent := nil;
 
+    minMatch := -1;
     skipClose := 10;
     minRunEnergy := 20;
     path := world;
@@ -141,19 +148,24 @@ begin
 
   Result.x += ((WMM_INNER.x2-WMM_INNER.x1+1) div 2) + WMM_OFFSET.x;
   Result.y += ((WMM_INNER.y2-WMM_INNER.y1+1) div 2) + WMM_OFFSET.y;
+  finder.topMatch := best.value;
   finder.mmOffset := best.angle;
 end;
 
 
 (*
- Returns our current position.
+ Returns our current position. If `ignoreMatchValue` is False it will return -1,-1 if
+ it was a bad match.
 *)
-function TRSWalker.GetMyPos(): TPoint;
+function TRSWalker.GetMyPos(ignoreMatchValue:Boolean = True): TPoint;
 begin
   if finder.process > 0 then
     Result := self._getPos()
   else
     Result := self._getPosCustom();
+  
+  if not(ignoreMatchValue) and (self.minMatch > self.finder.topMatch) then
+    Exit(Point(-1,-1));
 end;
 
 

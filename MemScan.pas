@@ -1,3 +1,7 @@
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=]
+ Copyright (c) 2013, Jarl K. <Slacky> Holta || http://github.com/WarPie
+ All rights reserved.
+[=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 function HexStr(x:PtrUInt; Size:SizeInt=SizeOf(PtrUInt)): String;
 begin
   Result := IntToHex(x, Size*2);
@@ -93,7 +97,7 @@ end;
 
 
 (*
-  Copy hte data found at `loc` in to a TIntMatrix
+  Copy the data found at `loc` in to a TIntMatrix
 *)
 function GetMemBufferImage(scan:TMemScan; loc:PtrUInt; W,H:Int32): T2DIntArray;
 var

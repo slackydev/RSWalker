@@ -1,3 +1,7 @@
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=]
+ Copyright (c) 2013, Jarl K. <Slacky> Holta || http://github.com/WarPie
+ All rights reserved.
+[=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 {$loadlib ../Includes/OSRWalker/libMatchTempl.dll}
 const
   TM_SQDIFF        = 0;
