@@ -256,7 +256,25 @@ begin
 end;
 
 procedure TRSPosFinder.UpdateAddr();
+var
+  matches:TPtrIntArray;
+  tmp:PtrUInt;
+  size,i,k:Int32;
 begin
+  size := self.bufferW*self.bufferH;
+  matches := self.scan.FindByteArray([0,2,0,0,0,2,0,0,0,0,0,0,0,2,0,0,0,2,0,0], 4); //meh..
+  for i:=0 to High(Matches) do
+  begin
+    tmp := BytesToInt( self.scan.CopyMem(matches[i]+20,4) );
+    k := BytesToInt( self.scan.CopyMem(tmp+8,4) );
+    if ( k = size ) then
+    begin
+      self.addr := tmp+12;
+      Exit;
+    end;
+  end;
+  
+  //now why da fuq did the above fail? Reverting to old method:
   self.addr := FindMemBufferImage(self.scan, self.bufferW, self.bufferH);
 end;
 

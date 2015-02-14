@@ -13,7 +13,7 @@
         <WindowIndex Value="0"/>
         <TopLine Value="45"/>
         <CursorPos X="25" Y="66"/>
-        <UsageCount Value="56"/>
+        <UsageCount Value="57"/>
         <Loaded Value="True"/>
       </Unit0>
       <Unit1>
@@ -185,20 +185,20 @@
       <Unit23>
         <Filename Value="MemScan.pas"/>
         <UnitName Value="MemScan"/>
+        <IsVisibleTab Value="True"/>
         <EditorIndex Value="1"/>
         <WindowIndex Value="0"/>
         <TopLine Value="1"/>
-        <CursorPos X="20" Y="14"/>
+        <CursorPos X="62" Y="23"/>
         <UsageCount Value="11"/>
         <Loaded Value="True"/>
       </Unit23>
       <Unit24>
         <Filename Value="SimbaPlugin.inc"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="2"/>
         <WindowIndex Value="0"/>
-        <TopLine Value="43"/>
-        <CursorPos X="64" Y="64"/>
+        <TopLine Value="29"/>
+        <CursorPos X="64" Y="45"/>
         <UsageCount Value="12"/>
         <Loaded Value="True"/>
       </Unit24>
@@ -219,123 +219,123 @@
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="libWalker.lpr"/>
-        <Caret Line="73" Column="60" TopLine="54"/>
+        <Caret Line="50" Column="31" TopLine="29"/>
       </Position1>
       <Position2>
         <Filename Value="libWalker.lpr"/>
-        <Caret Line="24" Column="8" TopLine="18"/>
+        <Caret Line="52" Column="30" TopLine="39"/>
       </Position2>
       <Position3>
         <Filename Value="libWalker.lpr"/>
-        <Caret Line="57" Column="8" TopLine="34"/>
+        <Caret Line="60" Column="98" TopLine="44"/>
       </Position3>
       <Position4>
         <Filename Value="libWalker.lpr"/>
-        <Caret Line="50" Column="31" TopLine="29"/>
+        <Caret Line="68" Column="61" TopLine="47"/>
       </Position4>
       <Position5>
         <Filename Value="libWalker.lpr"/>
-        <Caret Line="52" Column="30" TopLine="39"/>
+        <Caret Line="61" Column="13" TopLine="51"/>
       </Position5>
       <Position6>
         <Filename Value="libWalker.lpr"/>
-        <Caret Line="60" Column="98" TopLine="44"/>
+        <Caret Line="254" Column="55" TopLine="238"/>
       </Position6>
       <Position7>
         <Filename Value="libWalker.lpr"/>
-        <Caret Line="68" Column="61" TopLine="47"/>
+        <Caret Line="196" Column="29" TopLine="188"/>
       </Position7>
       <Position8>
         <Filename Value="libWalker.lpr"/>
-        <Caret Line="61" Column="13" TopLine="51"/>
+        <Caret Line="211" Column="34" TopLine="187"/>
       </Position8>
       <Position9>
         <Filename Value="libWalker.lpr"/>
-        <Caret Line="254" Column="55" TopLine="238"/>
+        <Caret Line="37" Column="56" TopLine="21"/>
       </Position9>
       <Position10>
         <Filename Value="libWalker.lpr"/>
-        <Caret Line="196" Column="29" TopLine="188"/>
+        <Caret Line="30" Column="63" TopLine="26"/>
       </Position10>
       <Position11>
         <Filename Value="libWalker.lpr"/>
-        <Caret Line="211" Column="34" TopLine="187"/>
+        <Caret Line="45" Column="7" TopLine="33"/>
       </Position11>
       <Position12>
         <Filename Value="libWalker.lpr"/>
-        <Caret Line="37" Column="56" TopLine="21"/>
+        <Caret Line="30" Column="12" TopLine="16"/>
       </Position12>
       <Position13>
         <Filename Value="libWalker.lpr"/>
-        <Caret Line="30" Column="63" TopLine="26"/>
+        <Caret Line="51" Column="10" TopLine="31"/>
       </Position13>
       <Position14>
-        <Filename Value="libWalker.lpr"/>
-        <Caret Line="45" Column="7" TopLine="33"/>
+        <Filename Value="Utils.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
       </Position14>
       <Position15>
         <Filename Value="libWalker.lpr"/>
-        <Caret Line="30" Column="12" TopLine="16"/>
+        <Caret Line="73" Column="31" TopLine="4"/>
       </Position15>
       <Position16>
-        <Filename Value="libWalker.lpr"/>
-        <Caret Line="51" Column="10" TopLine="31"/>
+        <Filename Value="MemScan.pas"/>
+        <Caret Line="71" Column="36" TopLine="52"/>
       </Position16>
       <Position17>
-        <Filename Value="Utils.pas"/>
-        <Caret Line="1" Column="1" TopLine="1"/>
+        <Filename Value="SimbaPlugin.inc"/>
+        <Caret Line="44" Column="60" TopLine="28"/>
       </Position17>
       <Position18>
-        <Filename Value="libWalker.lpr"/>
-        <Caret Line="73" Column="31" TopLine="4"/>
+        <Filename Value="SimbaPlugin.inc"/>
+        <Caret Line="68" Column="28" TopLine="46"/>
       </Position18>
       <Position19>
         <Filename Value="MemScan.pas"/>
-        <Caret Line="71" Column="36" TopLine="52"/>
+        <Caret Line="17" Column="11" TopLine="1"/>
       </Position19>
       <Position20>
-        <Filename Value="SimbaPlugin.inc"/>
-        <Caret Line="44" Column="60" TopLine="28"/>
+        <Filename Value="MemScan.pas"/>
+        <Caret Line="315" Column="59" TopLine="298"/>
       </Position20>
       <Position21>
-        <Filename Value="SimbaPlugin.inc"/>
-        <Caret Line="68" Column="28" TopLine="46"/>
+        <Filename Value="MemScan.pas"/>
+        <Caret Line="309" Column="102" TopLine="293"/>
       </Position21>
       <Position22>
         <Filename Value="MemScan.pas"/>
-        <Caret Line="43" Column="53" TopLine="323"/>
+        <Caret Line="235" Column="30" TopLine="219"/>
       </Position22>
       <Position23>
-        <Filename Value="MemScan.pas"/>
-        <Caret Line="17" Column="11" TopLine="1"/>
+        <Filename Value="SimpleHeap.pas"/>
+        <Caret Line="1" Column="1" TopLine="1"/>
       </Position23>
       <Position24>
-        <Filename Value="MemScan.pas"/>
-        <Caret Line="315" Column="59" TopLine="298"/>
+        <Filename Value="Utils.pas"/>
+        <Caret Line="127" Column="6" TopLine="110"/>
       </Position24>
       <Position25>
         <Filename Value="MemScan.pas"/>
-        <Caret Line="309" Column="102" TopLine="293"/>
+        <Caret Line="102" Column="8" TopLine="85"/>
       </Position25>
       <Position26>
         <Filename Value="MemScan.pas"/>
-        <Caret Line="235" Column="30" TopLine="219"/>
+        <Caret Line="262" Column="56" TopLine="249"/>
       </Position26>
       <Position27>
-        <Filename Value="Utils.pas"/>
-        <Caret Line="214" Column="23" TopLine="473"/>
+        <Filename Value="MemScan.pas"/>
+        <Caret Line="258" Column="25" TopLine="241"/>
       </Position27>
       <Position28>
-        <Filename Value="SimpleHeap.pas"/>
-        <Caret Line="1" Column="1" TopLine="1"/>
+        <Filename Value="MemScan.pas"/>
+        <Caret Line="44" Column="14" TopLine="26"/>
       </Position28>
       <Position29>
-        <Filename Value="Utils.pas"/>
-        <Caret Line="127" Column="6" TopLine="110"/>
+        <Filename Value="MemScan.pas"/>
+        <Caret Line="296" Column="49" TopLine="279"/>
       </Position29>
       <Position30>
-        <Filename Value="MemScan.pas"/>
-        <Caret Line="102" Column="8" TopLine="85"/>
+        <Filename Value="SimbaPlugin.inc"/>
+        <Caret Line="45" Column="65" TopLine="33"/>
       </Position30>
     </JumpHistory>
   </ProjectSession>
