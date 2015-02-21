@@ -59,7 +59,11 @@ begin
   {$IFDEF SRL_MOUSE}
     mouse.click(box, btn);
   {$ELSE}
-    RaiseException('Not implmented yet');
+    {$IFDEF AEROLIB}
+      MouseBox(box, btn);
+    {$ELSE}
+      RaiseException('Not implmented yet');
+    {$ENDIF}
   {$ENDIF}
 end;
 
