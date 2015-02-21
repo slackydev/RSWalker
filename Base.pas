@@ -286,7 +286,12 @@ end;
 procedure TRSPosFinder.UpdateMap(rescan:Boolean=False);
 begin
   if rescan then
+  begin
     self.UpdateAddr();
+    //check again.. temporary solution.
+    if self.MustUpdateAddr() then
+      self.UpdateAddr();
+  end;
   
   self.localMap := GetMemBufferImage(self.scan, self.addr, self.bufferW, self.bufferH);
 end;

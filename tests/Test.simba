@@ -1,5 +1,6 @@
 program new;
 {$define SMART}
+{$define SRL}
 {$I SRL/OSR.simba}
 {$I OSRWalker/Walker.simba}
 
@@ -18,14 +19,15 @@ begin
   Smart.EnableDrawing := True;
   Smart.Init();
 
-  RSW.Init('world.png', SMART.PID); //if SMART: smart.PID
+  RSW.Init('world.png');
   AddOnTerminate(@RSW.Free);
   
   RSW.walkStyle := wsSPS;
   RSW.anyAngle  := True;
   RSW.skipClose := 15;
   RSW.onMoveEvent := @WhileMoving;
-  
-  //path := [Point(4952, 2965), Point(4970, 2922), Point(4972, 2878), Point(4972, 2833), Point(4959, 2799), Point(4950, 2769), Point(4923, 2750), Point(4886, 2733), Point(4847, 2735), Point(4800, 2732), Point(4756, 2731), Point(4705, 2729), Point(4662, 2734), Point(4613, 2731), Point(4574, 2731), Point(4535, 2733), Point(4497, 2735), Point(4471, 2749), Point(4443, 2770), Point(4396, 2781), Point(4356, 2779), Point(4318, 2777), Point(4283, 2774), Point(4249, 2765), Point(4196, 2766), Point(4161, 2770), Point(4137, 2780), Point(4105, 2776), Point(4076, 2782), Point(4035, 2782), Point(4004, 2780), Point(3976, 2767), Point(3957, 2754), Point(3919, 2745), Point(3887, 2741), Point(3858, 2729), Point(3816, 2725), Point(3779, 2729), Point(3756, 2761), Point(3729, 2784), Point(3700, 2795), Point(3676, 2820), Point(3673, 2851), Point(3674, 2881), Point(3677, 2912), Point(3709, 2939), Point(3735, 2948), Point(3778, 2975), Point(3807, 2991), Point(3830, 3022), Point(3835, 3053), Point(3836, 3084), Point(3837, 3114), Point(3835, 3149), Point(3835, 3183), Point(3832, 3215), Point(3828, 3244), Point(3834, 3278), Point(3835, 3312), Point(3858, 3336), Point(3894, 3345), Point(3932, 3337), Point(3966, 3342), Point(4013, 3348), Point(4052, 3340), Point(4085, 3340), Point(4109, 3320), Point(4138, 3294), Point(4176, 3287), Point(4210, 3270), Point(4263, 3270), Point(4308, 3257), Point(4341, 3269), Point(4377, 3270), Point(4417, 3272), Point(4440, 3286), Point(4460, 3296), Point(4490, 3302), Point(4526, 3303), Point(4555, 3314), Point(4582, 3325), Point(4612, 3331), Point(4636, 3332), Point(4670, 3345), Point(4680, 3368), Point(4700, 3395), Point(4727, 3401), Point(4751, 3401), Point(4780, 3391), Point(4778, 3361), Point(4771, 3338), Point(4762, 3305), Point(4763, 3272), Point(4765, 3238), Point(4785, 3211), Point(4804, 3189), Point(4816, 3171), Point(4842, 3153), Point(4865, 3150), Point(4883, 3134), Point(4902, 3117), Point(4931, 3092), Point(4958, 3065), Point(4974, 3053), Point(4986, 3030), Point(4987, 2994), Point(4980, 2964), Point(4952, 2965)];
-  //RSW.WalkPath(path);
+
+  path := [Point(4658, 2756), Point(4654, 2791), Point(4654, 2830), Point(4661, 2865), Point(4680, 2887), Point(4726, 2889), Point(4748, 2871), Point(4767, 2846), Point(4779, 2820), Point(4784, 2787), Point(4791, 2757), Point(4819, 2737), Point(4825, 2769)];
+  path.Reverse();
+  RSW.WalkPath(path);
 end.

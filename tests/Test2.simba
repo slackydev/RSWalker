@@ -2,7 +2,7 @@ program new;
 {$I SRL/OSR.simba}
 {$I OSRWalker/Walker.simba}
 
-var 
+var
   finder:TRSPosFinder;
   loc:TPoint;
   t:UInt32;
@@ -10,7 +10,7 @@ begin
   finder.Init(w_getClientPID());
   finder.UpdateMap(True);
   AddOnTerminate(@finder.Free);
-  
+
   while 1 do
   begin
     t := GetTimeRunning();
