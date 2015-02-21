@@ -28,10 +28,10 @@ type
   end;
 
 
-procedure TRSWalker.Init(world:String; PID:Int32);
+procedure TRSWalker.Init(World: String; PID:UInt32);
 var
   BMP:Integer;
-  path:String;
+  Path:String;
 begin
   with self do
   begin
@@ -45,15 +45,40 @@ begin
     minMatch := -1;
     skipClose := 10;
     minRunEnergy := 20;
-    path := world;
-    if not FileExists(path) then
-      path := IncludePath+'OSRWalker\maps\'+path;
-    BMP := LoadBitmap(path);
+    Path := world;
+    if not FileExists(Path) then
+      Path := IncludePath+'OSRWalker\maps\'+path;
+    if (not FileExists(Path)) then
+      RaiseException(erCustomError, Format('TRSWalker.Init: Map not found at "%s"', [Path]));
+    BMP := LoadBitmap(Path);
     worldMap := BitmapToMatrix(BMP);
     FreeBitmap(BMP);
 
     worldSample := w_imSample(worldMap, finder.scanRatio);
   end;
+end;
+
+
+procedure TRSWalker.Init(World: String; UseMemScan: Boolean = True); overload;
+var
+  Pid: Int32 = -1;
+begin
+  if (UseMemScan) then
+  begin
+    {$IFDEF SMART}
+      {$IFDEF SRL} Pid := Smart.PID; {$ELSE}
+      {$IFDEF AEROLIB} Pid := OS_SMART.ID; {$ENDIF} {$ENDIF}
+    {$ELSE}
+      Pid := w_GetClientPID();
+    {$ENDIF}
+
+    if (Pid = -1) then
+     RaiseException(erCustomError, 'TRSWalker.Init: Failed to initialize, unknown include ' +
+                                   'use non overloaded TRSWalker.Init');
+
+    Self.Init(World, Pid);
+  end else
+    Self.Init(World, -1);
 end;
 
 
