@@ -195,7 +195,7 @@ end;
 
 
 (*
- Outputes a point on the minimap position from current pos to `pt`
+ Outputs a point on the minimap position from current pos to `pt`
  Returns True if it's within the minimap area
 *)
 function TRSWalker.PointToMM(myPos, pt: TPoint; out mmPos:TPoint): Boolean;
@@ -382,4 +382,21 @@ begin
   end;
   
   self.minRunEnergy := tmp;
+end;
+
+(*
+  Creates path and walks to specified Tile even
+  if it's not on the minimap (however, it must be in the map)
+*)
+function TRSWalker.BlindWalk(Tile: TPoint): Boolean;
+var
+  MyPos: TPoint;
+begin
+  MyPos := self.GetMyPos();
+  Result := self.WalkPath(
+      w_WindPath(
+        MyPos.X, MyPos.Y, Tile.X, Tile.Y,
+        5.0, 2.5, 0.0, 0.0, 1.0, 1.0
+      )
+  );
 end;

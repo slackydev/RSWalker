@@ -140,6 +140,57 @@ begin
 end;
 
 
+{*Credit JuKKa*}
+function w_WindPath(Xs, Ys, Xe, Ye, Gravity, Wind, MinWait,
+  MaxWait, MaxStep, TargetArea: Extended): TPointArray;
+var
+  VeloX, VeloY, WindX, WindY, VeloMag, Dist, RandomDist, LastDist: Extended;
+  Step, Sqrt2, Sqrt3, Sqrt5: Extended;
+  LastX, LastY: Integer;
+begin
+  Sqrt2:= Sqrt(2);
+  Sqrt3:= Sqrt(3);
+  Sqrt5:= Sqrt(5);
+  while Hypot(Xs - Xe, Ys - Ye) > 1 do
+  begin
+    Dist:= hypot(Xs - Xe, Ys - Ye);
+    Wind:= MinE(Wind, Dist);
+    if Dist >= TargetArea then
+    begin
+      WindX:= WindX / Sqrt3 + (Random(Round(Wind) * 2 + 1) - Wind) / Sqrt5;
+      WindY:= WindY / Sqrt3 + (Random(Round(Wind) * 2 + 1) - Wind) / Sqrt5;
+    end else
+    begin
+      WindX:= WindX / Sqrt2;
+      WindY:= WindY / Sqrt2;
+      if (MaxStep < 3) then
+        MaxStep:= random(3) + 3.0
+      else
+        MaxStep:= MaxStep / Sqrt5;
+    end;
+    VeloX:= VeloX + WindX;
+    VeloY:= VeloY + WindY;
+    VeloX:= VeloX + Gravity * (Xe - Xs) / Dist;
+    VeloY:= VeloY + Gravity * (Ye - Ys) / Dist;
+    if Hypot(VeloX, VeloY) > MaxStep then
+    begin
+      RandomDist:= MaxStep / 2.0 + random(0, (round(MaxStep) div 2));
+      VeloMag:= sqrt(VeloX * VeloX + VeloY * VeloY);
+      VeloX:= (VeloX / VeloMag) * RandomDist;
+      VeloY:= (VeloY / VeloMag) * RandomDist;
+    end;
+    LastX:= Round(Xs);
+    LastY:= Round(Ys);
+    Xs:= Xs + VeloX;
+    Ys:= Ys + VeloY;
+    SetArrayLength(Result, GetArrayLength(Result) + 1);
+    Result[High(Result)] := Point(Round(Xs), Round(Ys));
+    Step:= Hypot(Xs - LastX, Ys - LastY);
+    LastDist:= Dist;
+  end;
+end;
+
+
 //---| TRSPosFinder |-----------------------------------------------------------------------\\
 procedure TRSPosFinder.Init(PID:Int32);
 begin
