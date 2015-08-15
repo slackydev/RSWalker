@@ -15,9 +15,9 @@ begin
   begin
     t := GetTimeRunning();
     loc := finder.GetLocalPos(True);
-
     ClearDebug();
-    WriteLn(loc,' used: ', Round(GetTimeRunning() - t,3),'ms' );
+    WriteLn('>>> ', loc,' used: ', Round(GetTimeRunning() - t,3),'ms' );
+    WriteLn('>>> 0x', HexStr(finder.addr));
     finder.DebugPos(loc);
   end;
 end;

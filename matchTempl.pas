@@ -2,23 +2,19 @@
  Copyright (c) 2013, Jarl K. <Slacky> Holta || http://github.com/WarPie
  All rights reserved.
 [=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
-{$loadlib ../Includes/OSRWalker/libMatchTempl.dll}
-const
-  TM_SQDIFF        = 0;
-  TM_SQDIFF_NORMED = 1;
-  TM_CCORR         = 2;
-  TM_CCORR_NORMED  = 3;
-  TM_CCOEFF        = 4;
-  TM_CCOEFF_NORMED = 5; 
-
+{$ifndecl cv_MatFromData} {$include_once libloader.inc} {$endif}
+type
+  cvCrossCorrAlgo = (
+    CV_TM_SQDIFF, CV_TM_SQDIFF_NORMED, CV_TM_CCORR, CV_TM_CCORR_NORMED,
+    CV_TM_CCOEFF, CV_TM_CCOEFF_NORMED
+  );
+  cvMatrix2D = record Data:Pointer; cols,rows:Int32; end; 
+  LibCV = type Pointer;
 
 {-------------------------------------------------------------------------------]
  Raw base for MatchTemplate
 [-------------------------------------------------------------------------------}
-{$IFNDEF CODEINSIGHT}
-type CVMat = record Data:Pointer; cols,rows:Int32; end; 
-
-function __cvLoadFromMatrix(var Mat:T2DIntArray): CVMat;
+function LibCV.__cvLoadFromMatrix(var Mat:T2DIntArray): cvMatrix2D;
 var
   w,h,y:Int32;
   data:TIntegerArray;
@@ -37,7 +33,7 @@ begin
 end;
 
 
-procedure __cvFreeMatrix(var Matrix:CVMat);
+procedure LibCV.__cvFreeMatrix(var Matrix:cvMatrix2D);
 begin
   cv_FreeImage(Matrix.data);
   Matrix.cols := 0;
@@ -45,8 +41,8 @@ begin
 end;
 
 
-function __MatchTemplate(var img, templ:CVMat; Algo: Int8;
-                         Normed:Boolean=True): T2DFloatArray;
+function LibCV.__MatchTemplate(var img, templ:cvMatrix2D; algo: cvCrossCorrAlgo;
+                               normed:Boolean=True): T2DFloatArray;
 type 
   PFloat32 = ^Single;
 var
@@ -68,7 +64,7 @@ begin
   H := img.rows - templ.rows + 1;
   SetLength(Result, H,W);
 
-  Ptr := PFloat32(cv_MatchTemplate(img.Data, templ.Data, algo, normed, res));
+  Ptr := PFloat32(cv_MatchTemplate(img.Data, templ.Data, ord(algo), normed, res));
   if (Ptr = nil) then Exit();
 
   for i:=0 to H-1 do
@@ -76,21 +72,18 @@ begin
 
   cv_FreeImage(res);
 end;
-{$ENDIF}
 {-------------------------------------------------------------------------------]
 [-------------------------------------------------------------------------------}
 
 
-function w_MatchTemplate(Image, Templ:T2DIntArray; MatchAlgo: UInt8; Normalize:Boolean=False): T2DFloatArray; overload;
+function LibCV.MatchTemplate(image, templ:T2DIntArray; matchAlgo: cvCrossCorrAlgo; normalize:Boolean=False): T2DFloatArray; overload;
 var
   W,H:Int32;
-  patch,img:CVMat;
+  patch,img:cvMatrix2D;
 begin
-  img := __cvLoadFromMatrix(Image);
-  patch := __cvLoadFromMatrix(Templ);
-
-  Result := __MatchTemplate(img,patch,MatchAlgo,Normalize);
-
-  __cvFreeMatrix(img);
-  __cvFreeMatrix(patch);
+  img := Self.__cvLoadFromMatrix(Image);
+  patch := Self.__cvLoadFromMatrix(Templ);
+  Result := Self.__MatchTemplate(img,patch,matchAlgo,normalize);
+  Self.__cvFreeMatrix(img);
+  Self.__cvFreeMatrix(patch);
 end;

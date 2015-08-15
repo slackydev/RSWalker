@@ -1,1 +1,1 @@
-A library that contains the core tools used by RSWalker
+Simple library for scanning memory - Allows you to quickly scan for variables stored within a program.

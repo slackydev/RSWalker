@@ -9,8 +9,8 @@ program MapGrabber;
 *)
 
 const
-  PATH := 'Includes\Maps\';  //change it to where u wanna save
-  PREFIX := 'mine_';
+  PATH := 'C:\Simba\Includes\Maps\';  //change it to where u wanna save
+  PREFIX := 'new_';
 
 {$ifndecl ShowBitmap}
 procedure ShowBitmap(bmp: Integer);

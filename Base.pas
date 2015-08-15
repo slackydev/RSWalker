@@ -3,8 +3,8 @@
  All rights reserved.
 [=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
 {$loadlib ../Includes/OSRWalker/libWalker.dll}
-{$I matchTempl.pas}
-{$I MemScan.pas}
+{$include_once MatchTempl.pas}
+{$include_once MemScan.pas}
 
 {$ifdecl srl}{$ifdecl mouse}
   {$DEFINE SRL_MOUSE}
@@ -17,8 +17,11 @@ const
   WMM_CX:Int32   = 643;
   WMM_CY:Int32   = 83;
   WMM_OFFSET:TPoint = [1,1];
+  
+  W_MAP_OFFSET = 12;
+  W_SIZE_OFFSET = 8;
 
-
+  
 type
   TFeaturePoint = record
     x,y:Int32;
@@ -29,7 +32,7 @@ type
   T2DFeatPointArray = Array of TFeatPointArray;
   
   TRSPosFinder = record
-    matchAlgo: Byte;
+    matchAlgo: cvCrossCorrAlgo;
     scanRatio: Byte;
     numSamples:Int32;
     
@@ -62,7 +65,7 @@ begin
     {$IFDEF AEROLIB}
       MouseBox(box, btn);
     {$ELSE}
-      RaiseException('Not implmented yet');
+      RaiseException('Not implemented yet');
     {$ENDIF}
   {$ENDIF}
 end;
@@ -145,12 +148,12 @@ procedure TRSPosFinder.Init(PID:Int32);
 begin
   with Self do
   begin
-    matchAlgo := TM_CCOEFF_NORMED;
+    matchAlgo := CV_TM_CCOEFF_NORMED;
     scanRatio := 8;
     numSamples := 100;
     process := PID;
     
-    if PID >= 0 then scan.Init(process);
+    if PID > 0 then scan.Init(process);
     addr := 0;
     bufferW := 512;
     bufferH := 512;
@@ -169,6 +172,72 @@ begin
 end;
 
 
+function TRSPosFinder.GetMMAngle(): Double;
+begin
+  self.GetLocalPos(True); //updates the "minimap to compass"-offset
+  Result := FixD(w_GetCompassAngle() - self.mmOffset) ;
+end;
+
+
+function TRSPosFinder.ValidMapAddr(address:PtrUInt): Boolean;
+var data:Int32;
+begin
+  data := BytesToInt( self.scan.CopyMem(address+W_SIZE_OFFSET,4,False) );
+  Result := (data = self.bufferW * self.bufferH)
+end;
+
+
+function TRSPosFinder.MustUpdateAddr(): Boolean;
+begin
+  Result := not self.ValidMapAddr(self.addr);
+end;
+
+//updates the address of the minimap-buffer
+procedure TRSPosFinder.UpdateAddr();
+var
+  matches: Array of PtrUInt;
+  TIA: Array of Int32;
+  i,j: Int32;
+begin
+  matches := scan.MagicFunctionToFindTheMapBuffer([512,512,512,512],36);
+  for i:=0 to High(matches) do
+  begin
+    TIA := BytesToTIA( scan.CopyMem(matches[i],48) );
+    if InIntArray(TIA,0) then
+      for j:=0 to High(TIA) do
+        if self.ValidMapAddr(TIA[j]) then
+        begin
+          self.addr := TIA[j];
+          Exit;
+        end;
+  end;
+  RaiseException(erException, 'TRSPosFinder.UpdateAddr: Unable to locate bitmap');
+end;
+
+
+procedure TRSPosFinder.UpdateMap(rescan:Boolean=False);
+var t,c:UInt32;
+begin
+  if rescan then
+  begin
+    c := GetTimeRunning();
+    repeat
+      t := GetTimeRunning();
+      self.UpdateAddr();
+      t := GetTimeRunning() - t;
+      if self.ValidMapAddr(self.addr) then
+        break;
+      Wait(t div 2);
+      
+      if GetTimeRunning() - c > 50000 then
+        RaiseException(erException, 'TRSPosFinder.UpdateMap: Unable to locate a valid address');
+    until False;
+  end;
+  
+  self.localMap := GetMemBufferImage(self.scan, self.addr+W_MAP_OFFSET, self.bufferW, self.bufferH);
+end;
+
+
 function TRSPosFinder.FastMatchTemplate(large,sub:T2DIntArray; scanID:Int32): TFeatPointArray;
 var
   i:Int32;
@@ -176,7 +245,7 @@ var
   TPA:TPointArray;
   Acc:Array of Single;
 begin
-  mat := w_MatchTemplate(large,sub, self.matchAlgo);
+  mat := libCV.MatchTemplate(large,sub, self.matchAlgo);
   tpa := w_ArgMulti(mat, self.numSamples, True);
   acc := w_GetValues(mat, TPA);
   SetLength(Result, Length(TPA));
@@ -195,14 +264,14 @@ begin
   H := High(large);
   W := High(large[0]);
   if (H < length(sub)) or (W < length(sub[0])) then
-    RaiseException('Meh.. Time to error');
+    RaiseException(erException, 'TRSPosFinder.FindPeakAround: `large` bitmap is smaller than `sub`');
 
   B := [p.x, p.y, p.x + length(sub[0]), p.y + length(sub)];
   B := [B.x1-area, B.y1-area, B.x2+area, B.y2+area];
   B := [max(0,B.x1),max(0,B.y1),min(W,B.x2),min(H,B.y2)];
   mat := w_GetArea(large, b.x1,b.y1,b.x2,b.y2);
 
-  corr   := w_MatchTemplate(mat, sub, self.matchAlgo);
+  corr   := libCV.MatchTemplate(mat, sub, self.matchAlgo);
   Result := w_ArgMax(corr);
   Result := [Result.x-area+p.x, result.y-area+p.y];
 end;
@@ -234,66 +303,6 @@ begin
     for j:=0 to High(arr[i]) do
       if arr[i][j].value > result.value then
         result := arr[i][j];
-end;
-
-
-function TRSPosFinder.MustUpdateAddr(): Boolean;
-var
-  colors:TIntegerArray;
-  i:Int32;
-const
-  boxes:TBoxArray = [
-    [20,20,490,490],
-    [10,10,500,500],
-    [0, 0, 511,511]
-  ];
-begin
-  if length(localMap) <> self.bufferH then
-    Exit(True);
-
-  for i:=0 to High(Boxes) do
-  begin
-    colors := w_GetValues(localMap, EdgeFromBox(boxes[i]));
-    if (MinA(colors) <> 0) or (MaxA(colors) <> 0) then
-      Exit(True);
-  end;
-end;
-
-procedure TRSPosFinder.UpdateAddr();
-var
-  matches:TPtrIntArray;
-  tmp:PtrUInt;
-  size,i,k:Int32;
-begin
-  size := self.bufferW*self.bufferH;
-  matches := self.scan.FindByteArray([0,2,0,0,0,2,0,0,0,0,0,0,0,2,0,0,0,2,0,0], 4); //meh..
-  for i:=0 to High(Matches) do
-  begin
-    tmp := BytesToInt( self.scan.CopyMem(matches[i]+20,4) );
-    k := BytesToInt( self.scan.CopyMem(tmp+8,4) );
-    if ( k = size ) then
-    begin
-      self.addr := tmp+12;
-      Exit;
-    end;
-  end;
-  
-  //now why da fuq did the above fail? Reverting to old method:
-  self.addr := FindMemBufferImage(self.scan, self.bufferW, self.bufferH);
-end;
-
-
-procedure TRSPosFinder.UpdateMap(rescan:Boolean=False);
-begin
-  if rescan then
-  begin
-    self.UpdateAddr();
-    //check again.. temporary solution.
-    if self.MustUpdateAddr() then
-      self.UpdateAddr();
-  end;
-  
-  self.localMap := GetMemBufferImage(self.scan, self.addr, self.bufferW, self.bufferH);
 end;
 
 

@@ -38,22 +38,21 @@ type
     function Init(pid:UInt32): Boolean;
     procedure Free();
 
-    function GetMemRange(low,high:PtrUInt; dataSize:Int32; Alignment:Int8): TPtrInfoArray;
-    function CopyMem(addr:Pointer; bytesToRead:Int32): TByteArray;
+    function CopyMem(addr:Pointer; bytesToRead:Int32; unsafe:Boolean): TByteArray;
     function Search(targetData:Pointer; targetSize:Int32; Alignment:Int8): TPtrIntArray;
-    function SearchBoolMask(maskData:Pointer; maskSize:Int32; Alignment:Int8): TPtrIntArray;
+    function FindInstanceI32(contents:TIntArray; instSize:Int32): TPtrIntArray;
   end;
 
 
 function GetWindowProcessID(window:HWND): UInt32; cdecl;
-  
+
 function TMemScan_Init(var scan:TMemScan; pid:UInt32): Boolean; cdecl;
 procedure TMemScan_Free(var scan:TMemScan); cdecl;
-function TMemScan_GetMemRange(var scan:TMemScan; low, high:PtrUInt; dataSize:Int32; alignment:Int8): TPtrInfoArray; cdecl;
-function TMemScan_CopyMem(var scan:TMemScan; addr:Pointer; bytesToRead:Int32): TByteArray; cdecl;
+function TMemScan_CopyMem(var scan:TMemScan; addr:Pointer; bytesToRead:Int32; unsafe:LongBool): TByteArray; cdecl;
 function TMemScan_Search(var scan:TMemScan; targetData:Pointer; targetSize:Int32; alignment:Int8): TPtrIntArray; cdecl;
-function TMemScan_SearchBoolMask(var scan:TMemScan; maskData:Pointer; maskSize:Int32; alignment:Int8): TPtrIntArray; cdecl;
+function TMemScan_FindInstanceI32(var scan:TMemScan; contents:TIntArray; instSize:Int32): TPtrIntArray; cdecl;
 
+function TMemScan_SearchRaw(var scan:TMemScan; var targetData; itemSize:SizeInt; alignment:Int8): TPtrIntArray; cdecl;
 function TMemScan_FindInt8(var scan:TMemScan; data:UInt8; alignment:Int8): TPtrIntArray; cdecl;
 function TMemScan_FindInt16(var scan:TMemScan; data:UInt16; alignment:Int8): TPtrIntArray; cdecl;
 function TMemScan_FindInt32(var scan:TMemScan; data:UInt32; alignment:Int8): TPtrIntArray; cdecl;
@@ -66,6 +65,21 @@ function TMemScan_FindByteArray(var scan:TMemScan; data:TByteArray; alignment:In
 
 
 implementation
+uses Math;
+
+function fastCompareMem(P1,P2:PChar; Length:SizeInt): Boolean; Inline;
+var upper:PtrUInt;
+begin
+  Result := True;
+  upper := PtrUInt(P1)+Length;
+  while (PtrUInt(P1) < upper) do
+  begin
+    if P1^ <> P2^ then Exit(False);
+    Inc(P1);
+    Inc(P2);
+  end;
+end;
+
 
 function GetWindowProcessID(window:HWND): UInt32; cdecl;
 begin
@@ -97,82 +111,29 @@ begin
 end;
 
 
-function TMemScan.GetMemRange(low,high:PtrUInt; dataSize:Int32; Alignment:Int8): TPtrInfoArray;
+function TMemScan.CopyMem(addr:Pointer; bytesToRead:Int32; unsafe:Boolean): TByteArray;
 var
-  lo,hi:Int32;
-  overhead,count,buf_size:Int32;
+  gotBytes:PtrUInt;
   memInfo: MEMORY_BASIC_INFORMATION;
-  gotBytes, procMinAddr, procMaxAddr:PtrUInt;
-  buffer:PChar;
 begin
-  alignment := max(alignment, 1);
-  procMinAddr := Max(low,  Self.SysMemLo);
-  procMaxAddr := Min(high, Self.SysMemHi);
-
-  buf_size := 5 * 1024 * 1024;
-  buffer   := GetMem(buf_size);
-
-  SetLength(Result, 1024);
-  overhead := 1024;
-  count := 0;
-  while procMinAddr < procMaxAddr do
+  SetLength(Result, bytesToRead);
+  if unsafe then
   begin
-    VirtualQueryEx(Self.Proc, pointer(procMinAddr), {out} memInfo, SizeOf(memInfo));
+    ReadProcessMemory(Self.Proc, addr, @Result[0], bytesToRead, gotBytes);
+  end else
+  begin
+    if not InRange(PtrUInt(addr), self.SysMemLo, self.SysMemHi) then
+      Exit();
 
+    VirtualQueryEx(Self.Proc, addr, {out} memInfo, SizeOf(memInfo));
     if (MemInfo.State = MEM_COMMIT) and (not (MemInfo.Protect = PAGE_GUARD) or
        (MemInfo.Protect = PAGE_NOACCESS)) and (MemInfo.Protect = PAGE_READWRITE) then
     begin
-      if memInfo.RegionSize > buf_size then
-      begin
-        buffer := ReAllocMem(buffer, memInfo.RegionSize);
-        buf_size := memInfo.RegionSize;
-      end;
-
-      if ReadProcessMemory(Self.Proc, memInfo.BaseAddress, buffer, memInfo.RegionSize, {out} gotBytes) then
-      begin
-        //append the buffer to the result
-        lo := 0;
-        if PtrUInt(memInfo.BaseAddress) < procMinAddr then
-          lo += procMinAddr - PtrUInt(memInfo.BaseAddress);
-        if alignment <> 1 then
-          lo += alignment - ((PtrUInt(memInfo.BaseAddress)+lo) mod alignment);
-        hi := memInfo.RegionSize - dataSize;
-
-        while lo <= hi do
-        begin
-          //overallocate result
-          if (count >= overhead) then
-          begin
-            overhead += overhead;
-            SetLength(Result, overhead);
-          end;
-
-          //set result
-          Result[count].addr := PtrUInt(memInfo.BaseAddress) + lo;
-          SetLength(Result[count].raw, dataSize);
-          Move(buffer[lo], Result[count].raw[0], dataSize);
-          inc(count);
-          lo += alignment;
-          if Result[count-1].addr >= procMaxAddr then
-            Break;
-        end;
-      end;
+      //rest := (PtrUInt(memInfo.BaseAddress) + memInfo.RegionSize) - PtrUInt(addr);
+      //bytesToRead := Min(rest,bytesToRead);
+      ReadProcessMemory(Self.Proc, addr, @Result[0], bytesToRead, gotBytes);
     end;
-    // move to the next mem-chunk
-    procMinAddr += memInfo.RegionSize;
   end;
-
-  FreeMem(buffer);
-  SetLength(Result, count);
-end;
-
-
-function TMemScan.CopyMem(addr:Pointer; bytesToRead:Int32): TByteArray;
-var
-  gotBytes:PtrUInt;
-begin
-  SetLength(Result, bytesToRead);
-  ReadProcessMemory(Self.Proc, addr, @Result[0], bytesToRead, {out} gotBytes);
 end;
 
 
@@ -225,7 +186,7 @@ begin
 
         while lo <= hi do
         begin
-          if CompareMem(targetData, @buffer[lo], targetSize) then
+          if fastCompareMem(targetData, @buffer[lo], targetSize) then
           begin
             if (count = overhead) then //overallocate result
             begin
@@ -248,43 +209,38 @@ begin
 end;
 
 
-
-function CompareLongboolMask(mem,mask:Pointer; len:Int32): Boolean; inline;
-var i:Int32 = 0;
-begin
-  while i < len do
-  begin
-    if (PUInt32(mem)^ <> 0) <> (PUInt32(mask)^ <> 0) then
-      Exit(False);
-    inc(mem, SizeOf(LongBool));
-    inc(mask, SizeOf(LongBool));
-    Inc(i,SizeOf(LongBool));
-  end;
-  Result := True;
-end;
-
 (*
-  Scans the procceess defined by `pid`, it will then return all addresses which
-  matches the given target-mask `maskData`. maskData can be any size `maskSize`.
-  - targetData is a simple boolean-mask.
-
-  Alignment is the memory alignment, for example `4` bytes, can be used to achieve
-  better speed, and skip some unwated matches.
-
-  Be warned the result can quickly get far to big with small masks!
+  ........ yuk (MagicFunctionToFindTheMapBuffer)
 *)
-function TMemScan.SearchBoolMask(maskData:Pointer; maskSize:Int32; Alignment:Int8): TPtrIntArray;
+function TMemScan.FindInstanceI32(contents:TIntArray; instSize:Int32): TPtrIntArray;
 var
-  lo,hi:Int32;
+  lo,hi,contsize,increment:Int32;
   overhead,count,buf_size:Int32;
   memInfo: MEMORY_BASIC_INFORMATION;
-  gotBytes, procMinAddr, procMaxAddr:PtrUInt;
+  gotBytes, procMinAddr:PtrUInt;
   buffer:PChar;
-begin
-  alignment := max(alignment, 1);
+  canJump:Boolean;
 
+  function ContainsData(constref needle:TIntArray; haystack:PInt32; instSize:Int16; var canJump:Boolean): Boolean; Inline;
+  var j,upper,h:Int32;
+  begin
+    Result := False;
+    j := 0;
+    h := High(needle);
+    upper := PtrUInt(haystack)+instSize;
+    while PtrUInt(haystack) < upper do
+    begin
+      if haystack^ = needle[j] then
+      begin
+        Inc(j);
+        if j > h then Exit(True);
+      end;
+      Inc(haystack);
+    end;
+    canJump := j = 0;
+  end;
+begin
   procMinAddr := Self.SysMemLo;
-  procMaxAddr := Self.SysMemHi;
 
   buf_size := 5 * 1024 * 1024;
   buffer   := GetMem(buf_size);
@@ -293,12 +249,14 @@ begin
   overhead := 1024;
   count := 0;
 
-  while procMinAddr < procMaxAddr do
+  contsize := instSize + (4 - instSize mod 4); //assumes 4 byte alignment
+  increment := Max(4,contsize - 4);
+  while procMinAddr < Self.SysMemHi do
   begin
     VirtualQueryEx(Self.Proc, pointer(procMinAddr), {out} memInfo, SizeOf(memInfo));
 
-    if (MemInfo.State = MEM_COMMIT) and (not (MemInfo.Protect = PAGE_GUARD) or
-       (MemInfo.Protect = PAGE_NOACCESS)) and (MemInfo.Protect = PAGE_READWRITE) then
+    if (MemInfo.State = MEM_COMMIT) and (MemInfo.Protect = PAGE_READWRITE) and
+       (not (MemInfo.Protect = PAGE_GUARD) or (MemInfo.Protect = PAGE_NOACCESS)) then
     begin
       if memInfo.RegionSize > buf_size then
       begin
@@ -310,13 +268,11 @@ begin
       begin
         // scan the buffer for given value
         lo := 0;
-        hi := memInfo.RegionSize - maskSize;
-        if alignment <> 1 then
-          lo += alignment - (PtrUInt(memInfo.BaseAddress) mod alignment);
-
+        hi := memInfo.RegionSize - contsize;
+        
         while lo <= hi do
         begin
-          if CompareLongboolMask(@buffer[lo], maskData, maskSize) then
+          if ContainsData(contents,@buffer[lo],instSize,canJump) then
           begin
             if (count = overhead) then //overallocate result
             begin
@@ -325,8 +281,10 @@ begin
             end;
             Result[count] := PtrUInt(memInfo.BaseAddress) + lo;
             inc(count);
+            Inc(lo, increment);
           end;
-          lo += alignment;
+          if canJump then Inc(lo, increment)
+          else Inc(lo, 4);
         end;
       end;
     end;
@@ -353,14 +311,14 @@ begin
   scan.Free();
 end;
 
-function TMemScan_GetMemRange(var scan:TMemScan; low, high:PtrUInt; dataSize:Int32; alignment:Int8): TPtrInfoArray; cdecl;
+function TMemScan_FindInstanceI32(var scan:TMemScan; contents:TIntArray; instSize:Int32): TPtrIntArray; cdecl;
 begin
-  Result := scan.GetMemRange(low, high, dataSize, alignment);
+  Result := scan.FindInstanceI32(contents,instSize);
 end;
 
-function TMemScan_CopyMem(var scan:TMemScan; addr:Pointer; bytesToRead:Int32): TByteArray; cdecl;
+function TMemScan_CopyMem(var scan:TMemScan; addr:Pointer; bytesToRead:Int32; unsafe:LongBool): TByteArray; cdecl;
 begin
-  Result := scan.CopyMem(addr, bytesToRead);
+  Result := scan.CopyMem(addr, bytesToRead, unsafe);
 end;
 
 function TMemScan_Search(var scan:TMemScan; targetData:Pointer; targetSize:Int32; alignment:Int8): TPtrIntArray; cdecl;
@@ -368,11 +326,12 @@ begin
   Result := scan.Search(targetData, targetSize, alignment);
 end;
 
-function TMemScan_SearchBoolMask(var scan:TMemScan; maskData:Pointer; maskSize:Int32; alignment:Int8): TPtrIntArray; cdecl;
+function TMemScan_SearchRaw(var scan:TMemScan; var targetData; itemSize:SizeInt; alignment:Int8): TPtrIntArray; cdecl;
+var sizePtr:PInt32;
 begin
-  Result := scan.SearchBoolMask(maskData, maskSize, alignment);
+  sizePtr := @Byte(targetData)-SizeOf(SizeInt);
+  Result := scan.Search(@targetData, (sizePtr^ + 1) * itemSize, alignment);
 end;
-
 
 //---| Helpers |--------------------------------------------------------------\\
 // ints

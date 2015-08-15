@@ -1,5 +1,5 @@
 program new;
-{$define SMART}
+{.$define SMART}
 {$define SRL}
 {$I SRL/OSR.simba}
 {$I OSRWalker/Walker.simba}
@@ -16,18 +16,18 @@ var
 begin
   //setup srl
   srl.DisableDebug := True;
-  Smart.EnableDrawing := True;
-  Smart.Init();
+  //Smart.EnableDrawing := True;
+  //Smart.Init();
 
-  RSW.Init('world.png');
+  RSW.Init('law-altar.png');
   AddOnTerminate(@RSW.Free);
-  
-  RSW.walkStyle := wsSPS;
+
+  RSW.walkStyle := wsRegular;
   RSW.anyAngle  := True;
   RSW.skipClose := 15;
   RSW.onMoveEvent := @WhileMoving;
 
-  path := [Point(4658, 2756), Point(4654, 2791), Point(4654, 2830), Point(4661, 2865), Point(4680, 2887), Point(4726, 2889), Point(4748, 2871), Point(4767, 2846), Point(4779, 2820), Point(4784, 2787), Point(4791, 2757), Point(4819, 2737), Point(4825, 2769)];
-  path.Reverse();
+  path := [Point(198, 213), Point(155, 195), Point(136, 170), Point(134, 136), Point(145, 105), Point(175, 88), Point(226, 89), Point(255, 113), Point(260, 152), Point(256, 184), Point(226, 198), Point(201, 188), Point(199, 159), Point(198, 138)];
+  //path.Reverse();
   RSW.WalkPath(path);
 end.

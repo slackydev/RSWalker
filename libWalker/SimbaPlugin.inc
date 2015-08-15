@@ -44,9 +44,10 @@ begin
   addMethod('function TMemScan.Init(pid:UInt32): Boolean;', @TMemScan_Init);
   addMethod('procedure TMemScan.Free();', @TMemScan_Free);
   addMethod('function TMemScan.Search(targetData:Pointer; targetSize:Int32; alignment:Int8=1): TPtrIntArray;', @TMemScan_Search);
-  addMethod('function TMemScan.GetMemRange(low,high:PtrUInt; dataSize:Int32; alignment:Int8=1): TPtrInfoArray;', @TMemScan_GetMemRange);
-  addMethod('function TMemScan.SearchBoolMask(maskData:Pointer; maskSize:Int32; alignment:Int8=1): TPtrIntArray;', @TMemScan_SearchBoolMask);
-  addMethod('function TMemScan.CopyMem(addr:PtrUInt; bytesToRead:Int32): TByteArray;', @TMemScan_CopyMem);
+  addMethod('function TMemScan.SearchRaw(constref data; itemSize:SizeInt; alignment:Int8=1): TPtrIntArray;', @TMemScan_SearchRaw);
+  addMethod('function TMemScan.MagicFunctionToFindTheMapBuffer(contents:TIntegerArray; instSize:Int32): TPtrIntArray;', @TMemScan_FindInstanceI32);
+  addMethod('function TMemScan.CopyMem(addr:PtrUInt; bytesToRead:Int32; unsafe:LongBool=True): TByteArray;', @TMemScan_CopyMem);
+  
   addMethod('function TMemScan.FindInt8(data:UInt8; alignment:Int8=1): TPtrIntArray;', @TMemScan_FindInt8);
   addMethod('function TMemScan.FindInt16(data:UInt16; alignment:Int8=1): TPtrIntArray;', @TMemScan_FindInt16);
   addMethod('function TMemScan.FindInt32(data:UInt32; alignment:Int8=1): TPtrIntArray;', @TMemScan_FindInt32);
