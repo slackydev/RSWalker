@@ -41,7 +41,9 @@ begin
   addType('TMemScan','packed record Proc: PtrUInt; SysMemLo: PtrUInt; SysMemHi: PtrUInt; end;');
 
   addMethod('function GetWindowProcessID(hwnd:UInt32): UInt32;', @GetWindowProcessID);
-  addMethod('function TMemScan.Init(pid:UInt32): Boolean;', @TMemScan_Init);
+  addMethod('function GetLastErrorAsString(out errno:UInt32): String;', @GetLastErrorAsString);
+
+  addMethod('function TMemScan.Init(pid:UInt32): Int32;', @TMemScan_Init);
   addMethod('procedure TMemScan.Free();', @TMemScan_Free);
   addMethod('function TMemScan.Search(targetData:Pointer; targetSize:Int32; alignment:Int8=1): TPtrIntArray;', @TMemScan_Search);
   addMethod('function TMemScan.SearchRaw(constref data; itemSize:SizeInt; alignment:Int8=1): TPtrIntArray;', @TMemScan_SearchRaw);

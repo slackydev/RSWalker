@@ -145,6 +145,22 @@ end;
 
 //---| TRSPosFinder |-----------------------------------------------------------------------\\
 procedure TRSPosFinder.Init(PID:Int32);
+var
+  errno:UInt32;
+  procedure CheckError(errno:UInt32);
+  begin
+    if errno = 0 then
+      Exit()
+    else if errno = $5 then
+      RaiseException(
+        Format('TMemScan.Init -> PID `%d` does not exist (Access is denied)', [errno])
+      )
+    else
+      RaiseException(
+        Format('TMemScan.Init -> %s', [GetLastErrorAsString(errno)])
+      );
+  end;
+
 begin
   with Self do
   begin
@@ -153,7 +169,8 @@ begin
     numSamples := 100;
     process := PID;
     
-    if PID > 0 then scan.Init(process);
+    if PID > 0 then CheckError(scan.Init(process));
+    
     addr := 0;
     bufferW := 512;
     bufferH := 512;

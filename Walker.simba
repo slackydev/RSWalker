@@ -65,14 +65,17 @@ end;
 procedure TRSWalker.Init(World: String; PID:Int32=0; AScanRatio:Int32=8);
 var
   BMP:Integer;
-  
   function FindMapPath(path:String): String;
+  var testPath:String;
   begin
     result := path;
     if not FileExists(result) then
-      result := IncludePath+'OSRWalker\maps\'+result;
-    if (not FileExists(result)) then
-      RaiseException(erException, 'TRSWalker.Init: Map not found at `'+result+'`');
+    begin
+      testPath := IncludePath+'OSRWalker\maps\'+result
+      if (not FileExists(testPath)) then
+        RaiseException(erException, 'TRSWalker.Init -> Map `'+result+'` not found');
+      Result := testPath;
+    end;
   end;
   
 begin

@@ -35,7 +35,7 @@ type
     SysMemLo: PtrUInt;
     SysMemHi: PtrUInt;
 
-    function Init(pid:UInt32): Boolean;
+    function Init(pid:UInt32): Int32;
     procedure Free();
 
     function CopyMem(addr:Pointer; bytesToRead:Int32; unsafe:Boolean): TByteArray;
@@ -45,8 +45,9 @@ type
 
 
 function GetWindowProcessID(window:HWND): UInt32; cdecl;
+function GetLastErrorAsString(out errno:UInt32): String; cdecl;
 
-function TMemScan_Init(var scan:TMemScan; pid:UInt32): Boolean; cdecl;
+function TMemScan_Init(var scan:TMemScan; pid:UInt32): Int32; cdecl;
 procedure TMemScan_Free(var scan:TMemScan); cdecl;
 function TMemScan_CopyMem(var scan:TMemScan; addr:Pointer; bytesToRead:Int32; unsafe:LongBool): TByteArray; cdecl;
 function TMemScan_Search(var scan:TMemScan; targetData:Pointer; targetSize:Int32; alignment:Int8): TPtrIntArray; cdecl;
@@ -86,19 +87,33 @@ begin
   Windows.GetWindowThreadProcessId(window, result);
 end;
 
-function TMemScan.Init(pid:UInt32): Boolean;
+function GetLastErrorAsString(out errno:UInt32): String; cdecl;
+var 
+  size: Int32;
+  buff: PAnsiChar;
+begin
+  errno := GetLastOSError();
+  if errno = 0 then Exit('');
+  Result := SysErrorMessage(errno);
+end;
+
+function TMemScan.Init(pid:UInt32): Int32;
 var
+  errmsg: String;
+  errno: DWORD = 0;
   sysInfo: SYSTEM_INFO;
 begin
   Windows.GetSystemInfo(@sysInfo);
   Self.SysMemLo := PtrUInt(sysInfo.lpMinimumApplicationAddress);
   Self.SysMemHi := PtrUInt(sysInfo.lpMaximumApplicationAddress);
 
-  Self.Proc := OpenProcess(PROCESS_ALL_ACCESS,False,pid);
+  Self.Proc := OpenProcess(PROCESS_ALL_ACCESS, False, pid);
   if Self.Proc = 0 then
-    raise Exception.Create(Format('TMemScan.Init -> PID %d does not exist', [pid]));
-
-  Result := True;
+  begin
+    errmsg := GetLastErrorAsString(errno);
+    Result := errno;
+  end else
+    Result := 0;
 end;
 
 procedure TMemScan.Free();
@@ -301,7 +316,7 @@ end;
 //----------------------------------------------------------------------------|\
 //---| WRAPPERS |-------------------------------------------------------------||
 //----------------------------------------------------------------------------|/
-function TMemScan_Init(var scan:TMemScan; pid:UInt32): Boolean; cdecl;
+function TMemScan_Init(var scan:TMemScan; pid:UInt32): Int32; cdecl;
 begin
   Result := scan.Init(pid);
 end;
