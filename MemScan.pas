@@ -1,7 +1,9 @@
-{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=]
- Copyright (c) 2013, Jarl K. <Slacky> Holta || http://github.com/WarPie
- All rights reserved.
-[=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+{==============================================================================]
+  Author: Jarl K. Holta
+  Project: RSWalker 
+  Project URL: https://github.com/WarPie/RSWalker
+  License: GNU GPL (http://www.gnu.org/licenses/gpl.html)
+[==============================================================================}
 function HexStr(x:PtrUInt; Size:SizeInt=SizeOf(PtrUInt)): String;
 begin
   Result := IntToHex(x, Size*2);

@@ -1,9 +1,10 @@
 unit SimpleHeap;
-{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=]
- Copyright (c) 2013, Jarl K. <Slacky> Holta || http://github.com/WarPie
- All rights reserved.
- For more info see: Copyright.txt
-[=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+{==============================================================================]
+  Author: Jarl K. Holta
+  Project: RSWalker 
+  Project URL: https://github.com/WarPie/RSWalker
+  License: GNU GPL (http://www.gnu.org/licenses/gpl.html)
+[==============================================================================}
 {$mode objfpc}{$H+}
 {$modeswitch advancedrecords}
 {$macro on}
