@@ -8,8 +8,8 @@
 
 type
   EWalkStyle    = (wsRegular, wsSPS);
-  TOnWalkEvent  = procedure(sender:TObject; myPos: TPoint; out keepGoing: Boolean);
-  TOnClickEvent = function(sender:TObject; var box: TBox): Boolean;
+  TOnWalkEvent  = procedure(sender:TObject; myPos: TPoint);
+  TOnClickEvent = procedure(sender:TObject; var box: TBox);
   TWhileWalkingEvent = procedure(sender:TObject; myPos: TPoint);
   
   
@@ -29,6 +29,8 @@ type
     onClickEvent:TOnClickEvent;
     onWalkEvent: TOnWalkEvent;
     onMoveEvent: TWhileWalkingEvent;
+    
+    enabled:Boolean;
   end;
 
 
@@ -46,6 +48,7 @@ begin
   walkStyle   := wsRegular;
   
   memScanEnabled := True;
+  enabled := True;
 end;
 
 
@@ -264,7 +267,7 @@ end;
 *)
 procedure TRSWalker.WalkToPos(mmPt, worldPt:TPoint; doRand:Boolean=False);
 var
-  t,r:UInt32;
+  t,st,r:UInt32;
   box:TBox;
   pos:TPoint;
 begin
@@ -275,10 +278,8 @@ begin
   box := [mmPt.x-r, mmPt.y-r, mmPt.x+r, mmPt.y+r];
     
   if Assigned(@self.onClickEvent) then
-  begin
-    if not(self.onClickEvent(@self, box)) then
-      w_clickMouse(box, mouse_left);
-  end else
+    self.onClickEvent(@self, box)
+  else
     w_clickMouse(box, mouse_left);
     
   t := GetTimeRunning() + 24000;
@@ -288,12 +289,13 @@ begin
     pos := self.GetMyPos();
     if w_Distance(pos, worldPt) < self.skipClose then
       Break;
-
+    
+    st := GetTimeRunning() + 60;
     if Assigned(@self.onMoveEvent) then
       self.onMoveEvent(@self, pos);
     
-    wait(60); //cooldown
-  until not(w_FlagPresent()) or (GetTimeRunning() > t);
+    Wait( Min(1, st-GetTimeRunning()) ); //cooldown
+  until (not enabled) or (not w_FlagPresent()) or (GetTimeRunning() > t);
 end;
 
 
@@ -314,22 +316,24 @@ begin
   w_clickMouse([mmPt.x,mmPt.y,mmPt.x,mmPt.y], mouse_left);
   if waitFlag then
   begin
-    t := GetTimeRunning() + 20000;
+    t := GetTimeRunning() + 24000;
     repeat
       w_QuickEnableRun(self.minRunEnergy);
-    until not(w_FlagPresent()) or (GetTimeRunning() > t);
+    until (not w_FlagPresent()) or (GetTimeRunning() > t);
   end;
 end;
 
 (*
+ Walks a path..
  
+ One hook is used here:
+ - onWalkEvent(self, myPos);
 *)
 function TRSWalker.WalkPath(Path: TPointArray; finalCorrection:Boolean=False): Boolean;
 var
   i,prev,h,tmp,attempts:Int32;
   t:UInt32;
   mmPt,myPos:TPoint;
-  keepGoing: Boolean;
   
   function RandomizeRunEnergy(e:Int32):Int32;
   begin
@@ -338,14 +342,16 @@ var
   end;
   
 begin
+  self.enabled := True;
   tmp := self.minRunEnergy;
   
   H := High(Path);
   i := 0;
   case self.walkStyle of
-    wsRegular://simple walking - can't start mid path.
+    //simple walking - can't start mid path, but can walk circles.
+    wsRegular:
       begin
-        t := GetTimeRunning() + 20000 + random(5000);
+        t := GetTimeRunning() + Random(20000, 25000);
         attempts := 0;
         while (i < H) and (GetTimeRunning() < t)  do
         begin
@@ -363,23 +369,22 @@ begin
           if self.PointToMM(myPos, path[i], mmPt) then
           begin
             if Assigned(@self.onWalkEvent) then 
-            begin
-              self.onWalkEvent(@self, myPos, keepGoing);
-              if not(keepGoing) then
-                Exit(True);
-            end;
+              self.onWalkEvent(@self, myPos);
+            if not(self.enabled) then 
+              Exit(True);
             
             self.WalkToPos(mmPt, path[i], i<>h);
             prev := i;
-            t := GetTimeRunning() + 20000 + random(5000);
+            t := GetTimeRunning() + Random(20000, 25000);
           end;
         end;
         Result := (i = H);
       end;
       
-    wsSPS://mimics the way SPS WalkPath works
+    //mimics the way SPS WalkPath works
+    wsSPS:
       begin
-        t := GetTimeRunning() + 20000 + random(5000);
+        t := GetTimeRunning() + Random(20000, 25000);
         attempts := 0;
         while (GetTimeRunning() < t) do
         begin
@@ -391,21 +396,19 @@ begin
               Continue;
 
             if prev = i then begin
-              inc(attempts);
+              Inc(attempts);
               if attempts > 5 then Exit(False);
             end else
               attempts := 0;
 
             if Assigned(@self.onWalkEvent) then 
-            begin
-              self.onWalkEvent(@self, myPos, keepGoing);
-              if not(keepGoing) then
-                Exit(True);
-            end;
+              self.onWalkEvent(@self, myPos);
+            if not(self.enabled) then 
+              Exit(True);
             
             self.WalkToPos(mmPt, path[i], i<>h);
             prev := i;
-            t := GetTimeRunning() + 20000 + random(5000);
+            t := GetTimeRunning() + Random(20000, 25000);
  	          Break;
           end;
           Result := (i = H);
@@ -414,9 +417,10 @@ begin
       end;
   end;
 
+  
   if Result and finalCorrection then
   begin
-    Wait(random(200,600));
+    Wait(Random(200,600));
     Self.PointToMM(Self.GetMyPos(), path[h], mmPt);
     if w_Distance(Point(WMM_CX,WMM_CY), mmPt) > 10 then
       self.WalkToPos(mmPt, path[h]);
