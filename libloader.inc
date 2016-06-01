@@ -1,1 +1,1 @@
-{$loadlib ../Includes/OSRWalker/libMatchTempl.dll}
+{$loadlib ../Includes/RSWalker/libMatchTempl.dll}

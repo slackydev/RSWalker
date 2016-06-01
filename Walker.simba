@@ -76,7 +76,7 @@ var
     result := path;
     if not FileExists(result) then
     begin
-      testPath := IncludePath+'OSRWalker\maps\'+result
+      testPath := IncludePath+'RSWalker\maps\'+result
       if (not FileExists(testPath)) then
         RaiseException(erException, 'TRSWalker.Init -> Map `'+result+'` not found');
       Result := testPath;
@@ -211,8 +211,8 @@ begin
     20
   );
 
-  Result.x += ((WMM_INNER.x2-WMM_INNER.x1+1) div 2) + WMM_OFFSET.x;
-  Result.y += ((WMM_INNER.y2-WMM_INNER.y1+1) div 2) + WMM_OFFSET.y;
+  Result.x += ((WMM_INNER.x2-WMM_INNER.x1+1) div 2) + 1;
+  Result.y += ((WMM_INNER.y2-WMM_INNER.y1+1) div 2) + 1;
   finder.topMatch := best.value;
   finder.mmOffset := best.angle;
 end;
@@ -243,7 +243,7 @@ end;
 function TRSWalker.PointToMM(myPos, pt: TPoint; out mmPos:TPoint): Boolean;
 begin
   Result := False;
-  if (w_Distance(myPos, pt) < 66) then
+  if (w_Distance(myPos, pt) < WMM_RAD) then
   begin
     mmPos.x := (pt.x - myPos.x);
     mmPos.y := (pt.y - myPos.y);
@@ -258,8 +258,8 @@ end;
   Takes the position we are walking to in both it's forms:
   - mmPt (position on minimap)
   - worldPt (position in the world)
-  Expects lookup to be fast, if this shows to not be the case, it's better to
-  replace ``Distance(Self.GetPos(), worldPt)`` with distnace-check to the flag.
+  Expects lookup to be fast, if this shows to not be the case, It might work for you
+  to replace ``Distance(Self.GetPos(), worldPt)`` with distance-check to the flag.
   
   Two hooks are called here:
   - onClickEvent(self,box)
@@ -267,14 +267,14 @@ end;
 *)
 procedure TRSWalker.WalkToPos(mmPt, worldPt:TPoint; doRand:Boolean=False);
 var
-  t,st,r:UInt32;
+  t,st,r:Int64;
   box:TBox;
   pos:TPoint;
 begin
   if self.anyAngle then
     mmPt := RotatePoint(mmPt, w_GetCompassAngle(False), WMM_CX,WMM_CY);
   
-  if (w_distance(mmPt,Point(WMM_CX,WMM_CY)) <= 60) and doRand then r := 5;
+  if (w_distance(mmPt,Point(WMM_CX,WMM_CY)) <= WMM_RAD-5) and doRand then r := 5;
   box := [mmPt.x-r, mmPt.y-r, mmPt.x+r, mmPt.y+r];
     
   if Assigned(@self.onClickEvent) then
@@ -282,7 +282,7 @@ begin
   else
     w_clickMouse(box, mouse_left);
     
-  t := GetTimeRunning() + 24000;
+  t := GetTickCount64() + 24000;
   repeat
     w_QuickEnableRun(self.minRunEnergy);
     
@@ -290,12 +290,12 @@ begin
     if w_Distance(pos, worldPt) < self.skipClose then
       Break;
     
-    st := GetTimeRunning() + 60;
+    st := GetTickCount64() + 60;
     if Assigned(@self.onMoveEvent) then
       self.onMoveEvent(@self, pos);
     
-    Wait( Min(1, st-GetTimeRunning()) ); //cooldown
-  until (not enabled) or (not w_FlagPresent()) or (GetTimeRunning() > t);
+    Wait( Max(1, st-GetTickCount64()) ); //cooldown
+  until (not enabled) or (not w_FlagPresent()) or (GetTickCount64() > t);
 end;
 
 
@@ -305,7 +305,7 @@ end;
 procedure TRSWalker.WalkToPos(worldPos:TPoint; waitFlag:Boolean=True); overload;
 var
   mmPt:TPoint;
-  t:UInt32;
+  t:Int64;
 begin
   if not Self.PointToMM(self.GetMyPos(), worldPos, mmPt) then
     Exit();
@@ -316,10 +316,10 @@ begin
   w_clickMouse([mmPt.x,mmPt.y,mmPt.x,mmPt.y], mouse_left);
   if waitFlag then
   begin
-    t := GetTimeRunning() + 24000;
+    t := GetTickCount64() + 24000;
     repeat
       w_QuickEnableRun(self.minRunEnergy);
-    until (not w_FlagPresent()) or (GetTimeRunning() > t);
+    until (not w_FlagPresent()) or (GetTickCount64() > t);
   end;
 end;
 
@@ -332,7 +332,7 @@ end;
 function TRSWalker.WalkPath(Path: TPointArray; finalCorrection:Boolean=False): Boolean;
 var
   i,prev,h,tmp,attempts:Int32;
-  t:UInt32;
+  t:Int64;
   mmPt,myPos:TPoint;
   
   function RandomizeRunEnergy(e:Int32):Int32;
@@ -351,17 +351,18 @@ begin
     //simple walking - can't start mid path, but can walk circles.
     wsRegular:
       begin
-        t := GetTimeRunning() + Random(20000, 25000);
+        t := GetTickCount64() + Random(20000, 25000);
         attempts := 0;
-        while (i < H) and (GetTimeRunning() < t)  do
+        while (i < H) and (GetTickCount64() < t)  do
         begin
           self.minRunEnergy := RandomizeRunEnergy(self.minRunEnergy);
           myPos := Self.GetMyPos();
           while (i < H) and (self.PointToMM(myPos, path[i+1], mmPt)) do
-            inc(i);
+            Inc(i);
 
-          if prev = i then begin
-            inc(attempts);
+          if prev = i then 
+          begin
+            Inc(attempts);
             if attempts > 5 then Exit(False);
           end else
             attempts := 0;
@@ -375,7 +376,7 @@ begin
             
             self.WalkToPos(mmPt, path[i], i<>h);
             prev := i;
-            t := GetTimeRunning() + Random(20000, 25000);
+            t := GetTickCount64() + Random(20000, 25000);
           end;
         end;
         Result := (i = H);
@@ -393,7 +394,7 @@ begin
           for i:=H downto 0 do
           begin
             if not Self.PointToMM(myPos, path[i], mmPt) then
-              Continue;
+              continue;
 
             if prev = i then begin
               Inc(attempts);
@@ -416,11 +417,10 @@ begin
         end;
       end;
   end;
-
   
   if Result and finalCorrection then
   begin
-    Wait(Random(200,600));
+    Wait(Random(300,600));
     Self.PointToMM(Self.GetMyPos(), path[h], mmPt);
     if w_Distance(Point(WMM_CX,WMM_CY), mmPt) > 10 then
       self.WalkToPos(mmPt, path[h]);

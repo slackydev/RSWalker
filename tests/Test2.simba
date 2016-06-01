@@ -1,6 +1,6 @@
 program new;
 {$I SRL/OSR.simba}
-{$I OSRWalker/Walker.simba}
+{$I RSWalker/Walker.simba}
 
 var
   finder:TRSPosFinder;

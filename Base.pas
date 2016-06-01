@@ -4,7 +4,7 @@
   Project URL: https://github.com/WarPie/RSWalker
   License: GNU GPL (http://www.gnu.org/licenses/gpl.html)
 [==============================================================================}
-{$loadlib ../Includes/OSRWalker/libWalker.dll}
+{$loadlib ../Includes/RSWalker/libWalker.dll}
 {$include_once MatchTempl.pas}
 {$include_once MemScan.pas}
 
@@ -12,17 +12,17 @@
   {$DEFINE SRL_MOUSE}
 {$endif}{$endif}
 
-
-const
+{$IFNDEF CODEINSIGHT}
+var
   WMM_OUTER:TBox = [570,9,714,159];
   WMM_INNER:TBox = [25,26,119,120];
-  WMM_CX:Int32   = 643;
-  WMM_CY:Int32   = 83;
-  WMM_OFFSET:TPoint = [1,1];
-  
-  W_MAP_OFFSET = 12;
-  W_SIZE_OFFSET = 8;
+  WMM_RAD:Int32  = 66;               //(safe) Radius of the minimap
+  WMM_CX:Int32   = 643;              //minimap center X
+  WMM_CY:Int32   = 83;               //minimap center Y    
 
+  W_MAP_OFFSET = 12;                 //memory scanning offset thingys
+  W_SIZE_OFFSET = 8;                 //...
+{$ENDIF}
   
 type
   TFeaturePoint = record
@@ -59,10 +59,10 @@ begin
   Result := GetWindowProcessID(H);
 end;
 
-procedure w_clickMouse(box:TBox; btn:Int32);
+procedure w_ClickMouse(box:TBox; btn:Int32);
 begin
   {$IFDEF SRL_MOUSE}
-    mouse.click(box, btn);
+    Mouse.Click(box, btn);
   {$ELSE}
     {$IFDEF AEROLIB}
       MouseBox(box, btn);
@@ -73,9 +73,9 @@ begin
 end;
 
 
-function w_Distance(A,B: TPoint): Double; overload;
+function w_Distance(A,B: TPoint): Double;
 begin
-  Result := Distance(A.X,A.Y, B.X,B.Y);
+  Result := Sqrt(Sqr(A.X-B.X) + Sqr(A.Y-B.Y));
 end;
 
 
@@ -104,16 +104,16 @@ var
   ATPA: T2DPointArray;
   i: Int32;
   B:TBox := [570,9,714,159];
-  t:UInt32;
+  t:Int64;
 begin
   Result := False;
-  t := GetTimeRunning() + searchTime;
-  while GetTimeRunning() < t do
-    if findColorsTolerance(TPA, 255, B.x1,B.y1,B.x2,B.y2, 1) then
+  t := GetTickCount64() + searchTime;
+  while GetTickCount64() < t do
+    if FindColorsTolerance(TPA, 255, B.x1,B.y1,B.x2,B.y2, 1) then
     begin
       ATPA := SplitTPA(TPA,1);
-      for i := 0 to High(ATPA) do
-        if (Length(ATPA[i]) >= 10) AND (Length(ATPA[i]) <= 50) then
+      for i:=0 to High(ATPA) do
+        if (Length(ATPA[i]) >= 10) and (Length(ATPA[i]) <= 50) then
           Exit(True);
     end;
 end;
@@ -122,15 +122,17 @@ end;
 function w_RunEnergy(): Integer;
 var
   cts := GetToleranceSpeed();
+  hmod,smod:Extended;
   text:String;
 begin
+  GetToleranceSpeed2Modifiers(hmod,smod);
   SetColorToleranceSpeed(2);
   SetToleranceSpeed2Modifiers(1,0.0); //only hue changes, from 0 to 34
   text := GetTextAtEx(547,137,565,147, 0,4, 1, 255,34, 'StatChars07');
   SetColorToleranceSpeed(cts);
-  SetToleranceSpeed2Modifiers(0.2,0.2);
+  SetToleranceSpeed2Modifiers(hmod,smod);
   Result := StrToIntDef(text, 0);
-end; 
+end;
 
 
 procedure w_QuickEnableRun(minEnergy:Int32);
@@ -159,7 +161,7 @@ var
       )
     else
       RaiseException(
-        Format('TMemScan.Init -> %s', [GetLastErrorAsString(errno)])
+        Format('TMemScan.Init -> `%s`', [GetLastErrorAsString(errno)])
       );
   end;
 
@@ -235,20 +237,20 @@ end;
 
 
 procedure TRSPosFinder.UpdateMap(rescan:Boolean=False);
-var t,c:UInt32;
+var t,c:Int64;
 begin
   if rescan then
   begin
-    c := GetTimeRunning();
+    c := GetTickCount64();
     repeat
-      t := GetTimeRunning();
+      t := GetTickCount64();
       self.UpdateAddr();
-      t := GetTimeRunning() - t;
+      t := GetTickCount64() - t;
       if self.ValidMapAddr(self.addr) then
         break;
       Wait(t div 2);
       
-      if GetTimeRunning() - c > 50000 then
+      if GetTickCount64() - c > 50000 then
         RaiseException(erException, 'TRSPosFinder.UpdateMap: Unable to locate a valid address');
     until False;
   end;
@@ -357,8 +359,8 @@ begin
     20
   );
 
-  Result.x += ((WMM_INNER.x2-WMM_INNER.x1+1) div 2) + WMM_OFFSET.x;
-  Result.y += ((WMM_INNER.y2-WMM_INNER.y1+1) div 2) + WMM_OFFSET.y;
+  Result.x += ((WMM_INNER.x2-WMM_INNER.x1+1) div 2) + 1;
+  Result.y += ((WMM_INNER.y2-WMM_INNER.y1+1) div 2) + 1;
   
   Self.topMatch := best.value;
   Self.mmOffset := best.angle;
@@ -380,10 +382,12 @@ begin
   DrawTPABitmap(BMP, TPAFromLine(p.x,0,p.x,H-1), $00FF00);
 
   if text then
-  begin
+  try
     TPA := TPAFromText(text,'SmallChars07',_,_);
     OffsetTPA(TPA,Point(10,10));
     DrawTPABitmap(BMP, TPA, $00FF00);
+  except
+    //nothing;
   end;
   
   DisplayDebugImgWindow(W,H);

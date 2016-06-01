@@ -1,5 +1,5 @@
 program MapGrabber;
-{$I OSRWalker/Walker.simba}
+{$I RSWalker/Walker.simba}
 
 (*
   Change `PATH` to a folder where you want to save pieces.
