@@ -92,11 +92,14 @@ begin
 
     self.SetDefaultValues();
     
-    BMP := LoadBitmap(FindMapPath(world));
-    worldMap := BitmapToMatrix(BMP);
-    FreeBitmap(BMP);
-
-    worldSample := w_imSample(worldMap, finder.scanRatio);
+    if world <> '' then
+    begin
+      BMP := LoadBitmap(FindMapPath(world));
+      worldMap := BitmapToMatrix(BMP);
+      FreeBitmap(BMP);
+      worldSample := w_imSample(worldMap, finder.scanRatio);
+    end else
+      self.enabled := False;
   end;
 end;
 
@@ -226,6 +229,9 @@ end;
 *)
 function TRSWalker.GetMyPos(ignoreMatchValue:Boolean = True): TPoint;
 begin
+  if Length(worldMap) = 0 then
+    RaiseException('TRSWalker.GetMyPos -> RSWalker is not set up for this task!');
+  
   if (finder.process > 0) and (self.memScanEnabled) then
     Result := self._getPos()
   else
@@ -340,8 +346,10 @@ var
     if e > 100 then Exit();
     Result := Random(max(5,e-10), e+10);
   end;
-  
 begin
+  if Length(worldMap) = 0 then
+    RaiseException('TRSWalker.WalkPath -> RSWalker is not set up for this task!');
+
   self.enabled := True;
   tmp := self.minRunEnergy;
   

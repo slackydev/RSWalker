@@ -188,7 +188,7 @@ begin
   begin
     scan.Free();
     addr := 0;
-    setLength(localMap,0);
+    SetLength(localMap,0);
   end;
 end;
 

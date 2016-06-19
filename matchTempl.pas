@@ -11,12 +11,15 @@ type
     CV_TM_CCOEFF, CV_TM_CCOEFF_NORMED
   );
   cvMatrix2D = record Data:Pointer; cols,rows:Int32; end; 
-  LibCV = type Pointer;
+  TLibCV = type Pointer;
+
+var
+  LibCV: TLibCV = nil;
 
 {-------------------------------------------------------------------------------]
  Raw base for MatchTemplate
 [-------------------------------------------------------------------------------}
-function LibCV.__cvLoadFromMatrix(var Mat:T2DIntArray): cvMatrix2D;
+function TLibCV.__cvLoadFromMatrix(var Mat:T2DIntArray): cvMatrix2D;
 var
   w,h,y:Int32;
   data:TIntegerArray;
@@ -35,7 +38,7 @@ begin
 end;
 
 
-procedure LibCV.__cvFreeMatrix(var Matrix:cvMatrix2D);
+procedure TLibCV.__cvFreeMatrix(var Matrix:cvMatrix2D);
 begin
   cv_FreeImage(Matrix.data);
   Matrix.cols := 0;
@@ -43,7 +46,7 @@ begin
 end;
 
 
-function LibCV.__MatchTemplate(var img, templ:cvMatrix2D; algo: cvCrossCorrAlgo;
+function TLibCV.__MatchTemplate(var img, templ:cvMatrix2D; algo: cvCrossCorrAlgo;
                                normed:Boolean=True): T2DFloatArray;
 type 
   PFloat32 = ^Single;
@@ -78,7 +81,7 @@ end;
 [-------------------------------------------------------------------------------}
 
 
-function LibCV.MatchTemplate(image, templ:T2DIntArray; matchAlgo: cvCrossCorrAlgo; normalize:Boolean=False): T2DFloatArray; overload;
+function TLibCV.MatchTemplate(image, templ:T2DIntArray; matchAlgo: cvCrossCorrAlgo; normalize:Boolean=False): T2DFloatArray; overload;
 var
   W,H:Int32;
   patch,img:cvMatrix2D;
