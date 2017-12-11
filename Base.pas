@@ -15,7 +15,7 @@
 {$IFNDEF CODEINSIGHT}
 var
   WMM_OUTER:TBox = [570,9,714,159];
-  WMM_INNER:TBox = [25,26,119,120];
+  WMM_INNER:TBox = [18,19,126,127];  //[25,26,119,120];
   WMM_RAD:Int32  = 66;               //(safe) Radius of the minimap
   WMM_CX:Int32   = 643;              //minimap center X
   WMM_CY:Int32   = 83;               //minimap center Y    
@@ -26,21 +26,16 @@ var
   
 type
   TFeaturePoint = record
-    x,y:Int32;
-    value:Single;
-    angle:Int32;
+    x,y: Int32;
+    value: Single;
   end;
-  TFeatPointArray = Array of TFeaturePoint;   
-  T2DFeatPointArray = Array of TFeatPointArray;
   
   TRSPosFinder = record
     matchAlgo: cvCrossCorrAlgo;
     scanRatio: Byte;
-    numSamples:Int32;
     
     //from last correlation
-    mmOffset: Int32;
-    topMatch: Single;
+    similarity: Single;
     
     //mem-stuff
     process:Int32;
@@ -146,6 +141,22 @@ begin
     w_ClickMouse(B, mouse_Left);
 end;
 
+function w_IsMoving(): Boolean;
+  function GetPixelShift(Area: TBox; WaitTime: UInt32): Integer;
+  var
+    Before, After: Integer;
+  begin
+    Before := BitmapFromClient(Area);
+    Wait(WaitTime);
+    After := BitmapFromClient(Area);
+    Result := CalculatePixelShift(Before, After, [0, 0, (Area.X2 - Area.X1), (Area.Y2 - Area.Y1)]);
+    FreeBitmap(Before);
+    FreeBitmap(After);
+  end;  
+begin
+  Result := GetPixelShift([WMM_CX - 35, WMM_CY - 35, WMM_CX + 35, WMM_CY + 35], 350) > 300;
+end;
+
 
 //---| TRSPosFinder |-----------------------------------------------------------------------\\
 procedure TRSPosFinder.Init(PID:Int32);
@@ -168,14 +179,13 @@ var
 begin
   with Self do
   begin
-    matchAlgo := CV_TM_CCOEFF_NORMED;
-    scanRatio := 8;
-    numSamples := 100;
-    process := PID;
+    matchAlgo  := CV_TM_CCOEFF_NORMED;
+    scanRatio  := 6;
+    process    := PID;
     
     if PID > 0 then CheckError(scan.Init(process));
     
-    addr := 0;
+    addr    := $0;
     bufferW := 512;
     bufferH := 512;
   end;
@@ -192,13 +202,8 @@ begin
   end;
 end;
 
-
-function TRSPosFinder.GetMMAngle(): Double;
-begin
-  self.GetLocalPos(True); //updates the "minimap to compass"-offset
-  Result := FixD(w_GetCompassAngle() - self.mmOffset) ;
-end;
-
+// ---------------------------------------------------------------------------------
+// Memory scanning related methods:
 
 function TRSPosFinder.ValidMapAddr(address:PtrUInt): Boolean;
 var data:Int32;
@@ -259,119 +264,86 @@ begin
 end;
 
 
-function TRSPosFinder.FastMatchTemplate(large,sub:T2DIntArray; scanID:Int32): TFeatPointArray;
+// ---------------------------------------------------------------------------------
+// Positioning related methods:
+
+function TRSPosFinder.XCorr(Sub, Large:T2DIntArray; AngleRad:Double): TFeaturePoint;
 var
-  i:Int32;
-  mat:T2DFloatArray;
-  TPA:TPointArray;
-  Acc:Array of Single;
+  Test: T2DIntArray;
+  res: T2DFloatArray;
+  pt: TPoint;
 begin
-  mat := libCV.MatchTemplate(large,sub, self.matchAlgo);
-  tpa := w_ArgMulti(mat, self.numSamples, True);
-  acc := w_GetValues(mat, TPA);
-  SetLength(Result, Length(TPA));
-  for i:=0 to High(tpa) do
-    Result[i] := [tpa[i].x*self.scanRatio, tpa[i].y*self.scanRatio, acc[i], scanid];
+  Test := w_imRotate(Sub, AngleRad, False, False);
+  Test := w_GetArea(Test, WMM_INNER.x1, WMM_INNER.y1, WMM_INNER.x2, WMM_INNER.y2);
+  Test := w_imSample(Test, self.scanRatio);
+
+  res := LibCV.MixedXCorr(Large, Test);
+  //res := libCV.MatchTemplate(Large, Test, self.matchAlgo);
+  pt  := w_ArgMax(res);
+
+  Result.Value := res[pt.x, pt.y];
+  Result.x := pt.x * self.scanRatio;
+  Result.y := pt.y * self.scanRatio;
 end;
-
-
-function TRSPosFinder.FindPeakAround(large, sub:T2DIntArray; p:TPoint; area:Int32): TPoint;
-var
-  W,H:Int32;
-  mat:T2DIntArray;
-  corr:T2DFloatArray;
-  B:TBox;
-begin
-  H := High(large);
-  W := High(large[0]);
-  if (H < length(sub)) or (W < length(sub[0])) then
-    RaiseException(erException, 'TRSPosFinder.FindPeakAround: `large` bitmap is smaller than `sub`');
-
-  B := [p.x, p.y, p.x + length(sub[0]), p.y + length(sub)];
-  B := [B.x1-area, B.y1-area, B.x2+area, B.y2+area];
-  B := [max(0,B.x1),max(0,B.y1),min(W,B.x2),min(H,B.y2)];
-  mat := w_GetArea(large, b.x1,b.y1,b.x2,b.y2);
-
-  corr   := libCV.MatchTemplate(mat, sub, self.matchAlgo);
-  Result := w_ArgMax(corr);
-  Result := [Result.x-area+p.x, result.y-area+p.y];
-end;
-
-
-function TRSPosFinder.Correlate(sub,large:T2DIntArray; offset:Double=0): T2DFeatPointArray;
-var 
-  angle:Int32;
-  test:T2DIntArray;
-begin
-  for angle:=-20 to 20 with 2 do
-  begin
-    test := w_imRotate(sub, radians(angle)+offset, False,False);
-    test := w_GetArea(test, WMM_INNER.x1,WMM_INNER.y1,WMM_INNER.x2,WMM_INNER.y2);
-    test := w_imSample(test, self.scanRatio);
-    SetLength(Result, length(Result)+1);
-    Result[high(Result)] := Self.FastMatchTemplate(large, test, angle);
-  end;
-end;
-
-
-function TRSPosFinder.FindPeak(arr:T2DFeatPointArray): TFeaturePoint;
-var
-  i,j:Int32;
-  top:Single;
-begin
-  result.value := arr[0][0].value;
-  for i:=0 to High(arr) do
-    for j:=0 to High(arr[i]) do
-      if arr[i][j].value > result.value then
-        result := arr[i][j];
-end;
-
 
 (*
-
+  Cross correlation without any resizing.
 *)
-function TRSPosFinder.GetLocalPos(anyAngle:Boolean=False): TPoint;
+function TRSPosFinder.XCorrPeakNear(p:TPoint; Large, Sub:T2DIntArray; Area:Int32): TPoint;
 var
-  feat: T2DFeatPointArray;
-  BMP: Integer;
-  MM,test,world: T2DIntArray;
-  best:TFeaturePoint;
-  compRad:Double = 0;
+  W,H: Int32;
+  mat: T2DIntArray;
+  corr: T2DFloatArray;
+  B: TBox;
 begin
-  self.UpdateMap(self.MustUpdateAddr());
-  world := w_imSample(localMap, self.scanRatio);
-  if anyAngle then
-    compRad := w_GetCompassAngle(False);
+  H := High(Large);
+  W := High(Large[0]);
+  if (H < Length(Sub)) or (W < Length(Sub[0])) then
+    RaiseException(erException, 'TRSPosFinder.FindPeakAround: `large` bitmap is smaller than `sub`');
 
-  BMP := BitmapFromClient(WMM_OUTER.x1,WMM_OUTER.y1,WMM_OUTER.x2,WMM_OUTER.y2);
-  MM := BitmapToMatrix(BMP);
+  B := [p.x, p.y, p.x + Length(Sub[0]), p.y + Length(Sub)];
+  B := [B.x1-Area, B.y1-Area, B.x2+Area, B.y2+Area];
+  B := [max(0,B.x1),max(0,B.y1),min(W,B.x2),min(H,B.y2)];
+  mat := w_GetArea(Large, b.x1,b.y1,b.x2,b.y2);
+
+  corr   := libCV.MatchTemplate(mat, Sub, self.matchAlgo);
+  Result := w_ArgMax(corr);
+  Result := [Result.x-Area+p.x, Result.y-Area+p.y];
+end;
+
+function TRSPosFinder.GetLocalPos(): TPoint;
+var
+  BMP: PtrInt;
+  MM, test, world: T2DIntArray;
+  best: TFeaturePoint;
+  angleRad: Double;
+begin
+  UpdateMap(MustUpdateAddr());
+
+  world := w_imSample(Self.localMap, Self.scanRatio);
+  angleRad := w_GetCompassAngle(False);
+
+  BMP := BitmapFromClient(WMM_OUTER.x1, WMM_OUTER.y1, WMM_OUTER.x2, WMM_OUTER.y2);
+  MM  := BitmapToMatrix(BMP);
   FreeBitmap(BMP);
 
-  feat := self.Correlate(MM, world, compRad);
-  best := self.FindPeak(feat);
+  best := XCorr(MM, world, angleRad);
+  test := w_imRotate(MM, angleRad, False, True);
+  test := w_GetArea(test, WMM_INNER.x1, WMM_INNER.y1, WMM_INNER.x2, WMM_INNER.y2);
 
-  test := w_imRotate(MM, radians(best.angle) + compRad, False,True);
-  test := w_GetArea(test, WMM_INNER.x1,WMM_INNER.y1,WMM_INNER.x2,WMM_INNER.y2);
-  Result := findPeakAround(
-    self.localMap,
-    test,
-    Point(best.x,best.y),
-    20
-  );
-
+  Result := XCorrPeakNear(Point(best.x, best.y), Self.localMap, test, 20);
   Result.x += ((WMM_INNER.x2-WMM_INNER.x1+1) div 2) + 1;
   Result.y += ((WMM_INNER.y2-WMM_INNER.y1+1) div 2) + 1;
-  
-  Self.topMatch := best.value;
-  Self.mmOffset := best.angle;
+
+  Self.similarity := best.value;
 end;
 
 
 procedure TRSPosFinder.DebugPos(p:TPoint; text:String='');
 var
-  TPA:TPointArray;
-  BMP:Integer;
-  W,H,_:Int32;
+  TPA: TPointArray;
+  BMP: PtrInt;
+  W,H,_: Int32;
 begin
   BMP := CreateBitmap(0,0);
   DrawMatrixBitmap(BMP,self.localMap);

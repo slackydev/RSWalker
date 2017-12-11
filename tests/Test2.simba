@@ -1,11 +1,11 @@
 program new;
 {$I SRL/OSR.simba}
-{$I RSWalker/Walker.simba}
+{$I RSWalker2/Walker.simba}
 
 var
   finder:TRSPosFinder;
   loc:TPoint;
-  t:UInt32;
+  t: Double;
 begin
   finder.Init(w_getClientPID());
   finder.UpdateMap(True);
@@ -13,10 +13,10 @@ begin
 
   while 1 do
   begin
-    t := GetTimeRunning();
-    loc := finder.GetLocalPos(True);
+    t := PerformanceTimer();
+    loc := finder.GetLocalPos();
     ClearDebug();
-    WriteLn('>>> ', loc,' used: ', Round(GetTimeRunning() - t,3),'ms' );
+    WriteLn('>>> ', loc,' used: ', Round(PerformanceTimer() - t,3),'ms' );
     WriteLn('>>> 0x', HexStr(finder.addr));
     finder.DebugPos(loc);
   end;

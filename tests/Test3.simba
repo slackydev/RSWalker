@@ -1,0 +1,95 @@
+program new;
+{$I SRL/OSR.simba}
+{$I RSWalker2/Walker.simba}
+
+type
+  TFloatMatrix = array of TFloatArray;
+
+function TRSPosFinder.XCorr2(Sub, Large:T2DIntArray): TFloatMatrix;
+var
+  Test: T2DIntArray;
+begin
+  Test := w_GetArea(Sub, WMM_INNER.x1, WMM_INNER.y1, WMM_INNER.x2, WMM_INNER.y2);
+  Test  := w_imSample(Test,  self.scanRatio);
+  Large := w_imSample(Large, self.scanRatio);
+  Result := libCV.MixedXCorr(Large, Test);
+end;
+
+function TFloatMatrix.Normalize(Alpha:Single=0.0; Beta:Single=1.0): TFloatMatrix;
+var
+  Lo,Hi,oldRange,newRange:Single;
+  X,Y,W,H: Int32;
+begin
+  H := High(Self);
+  W := High(Self[0]);
+  SetLength(Result, H+1,W+1);
+  lo :=  $FFFFFF;
+  hi := -$FFFFFF;
+
+  for Y:=0 to H do
+    for X:=0 to W do
+    begin
+      if self[y,x] < lo then lo := self[y,x];
+      if self[y,x] > hi then hi := self[y,x];
+    end;
+  WriteLn([lo,hi]);
+  oldRange := Hi-Lo;
+  newRange := Beta-Alpha;
+  for Y:=0 to H do
+    for X:=0 to W do
+      Result[Y,X] := (Self[Y,X] - lo) / oldRange * newRange + Alpha;
+end;
+
+procedure BuildHeatmap(BMP: TMufasaBitmap; Mat: TFloatMatrix);
+var
+  _h,_l:Extended;
+  W,H,x,y,color:Int32;
+begin
+  W := Length(Mat[0])-1;
+  H := Length(Mat)-1;
+  Mat := Mat.Normalize(0,1);
+  BMP.SetSize(W+1,H+1);
+
+  for y:=0 to H do
+    for x:=0 to W do
+    begin
+      _h := (1 - Mat[y,x]) * 100;
+      _l := Mat[y,x] * 50;
+      color := HSLToColor(_H,100,_L);
+      BMP.SetPixel(x,y, color);
+     end;
+end
+
+
+var
+  im,BMP1,BMP2: TMufasaBitmap;
+  W,H: Int32;
+  mat: T2DIntArray;
+  finder:TRSPosFinder;
+begin
+  finder.Init(w_getClientPID());
+  finder.UpdateMap(True);
+  AddOnTerminate(@finder.Free);
+
+
+  while 1 do
+  begin
+    finder.GetLocalPos(True);
+    BMP1 := GetMufasaBitmap(CreateBitmap(600,600));
+    BMP2 := GetMufasaBitmap(BitmapFromClient(WMM_OUTER.x1, WMM_OUTER.y1, WMM_OUTER.x2, WMM_OUTER.y2));
+
+    BuildHeatmap(BMP1, finder.XCorr2(BMP2.ToMatrix(), finder.LocalMap));
+
+    im  := GetMufasaBitmap(CreateBitmap(0,0));
+    mat := w_imSample(finder.localMap, finder.scanRatio);
+    im.DrawMatrix(mat);
+    W := BMP1.GetWidth;
+    BMP1.SetSize(BMP1.GetWidth+im.GetWidth+20, Max(BMP1.GetHeight,im.GetHeight+20));
+    im.DrawTransparent(W,0,BMP1);
+    im.Free();
+
+    BMP2.Free();
+    BMP1.Debug();
+    BMP1.Free();
+  end;
+end.

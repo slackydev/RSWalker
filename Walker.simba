@@ -5,6 +5,7 @@
   License: GNU GPL (http://www.gnu.org/licenses/gpl.html)
 [==============================================================================}
 {$include_once Base.pas}
+{$include_once Utilities.pas}
 
 type
   EWalkStyle    = (wsRegular, wsSPS);
@@ -17,9 +18,7 @@ type
     worldMap, worldSample: T2DIntArray;
     walkStyle: EWalkStyle;
     skipClose: Int32;
-    anyAngle: Boolean;
     minRunEnergy: Int32;
-    minMatch: Single;
     
     finder: TRSPosFinder;
     memScanEnabled: Boolean;
@@ -41,10 +40,8 @@ begin
   onWalkEvent  := nil;
   onMoveEvent  := nil;
 
-  minMatch    := -1;
   skipClose   := 10;
   minRunEnergy:= 20;
-  anyAngle    := False;
   walkStyle   := wsRegular;
   
   memScanEnabled := True;
@@ -123,11 +120,10 @@ end;
 
 
 {---| IF MEMSCAN |---]
-  Locates the current minimap  in the world map
+  Locates the current minimap in the world map
 }
 function TRSWalker.FindChunk(pt:TPoint; area:Int32=100): TPoint;
 var
-  W,H:Int32;
   loc,locSample:T2DIntArray;
   corr:T2DFloatArray;
   B:TBox;
@@ -141,10 +137,10 @@ begin
 
   corr   := libCV.MatchTemplate(worldSample, locSample, finder.matchAlgo);
   Result := w_ArgMax(corr);
-  Result := finder.findPeakAround(
+  Result := finder.XCorrPeakNear(
+    Point(Result.x*finder.scanRatio, Result.y*finder.scanRatio),
     worldMap,
     loc,
-    Point(Result.x*finder.scanRatio, result.y*finder.scanRatio),
     20
   );
 
@@ -176,7 +172,7 @@ function TRSWalker._GetPos(): TPoint;
 var
   localPt:TPoint;
 begin
-  localPt := finder.GetLocalPos(self.anyAngle);
+  localPt := finder.GetLocalPos();
   self.UpdateGlobalStart(localPt);
   Result.x := localPt.x + self.global.x;
   Result.y := localPt.y + self.global.y;
@@ -188,48 +184,42 @@ end;
 }
 function TRSWalker._GetPosCustom(): TPoint;
 var
-  feat: T2DFeatPointArray;
   BMP: Integer;
   MM,test: T2DIntArray;
   best: TFeaturePoint;
-  compRad: Double = 0;
+  angleRad: Double;
 begin
-  if self.anyAngle then
-    compRad := w_GetCompassAngle(False);
+  angleRad := w_GetCompassAngle(False);
 
-  BMP := BitmapFromClient(WMM_OUTER.x1,WMM_OUTER.y1,WMM_OUTER.x2,WMM_OUTER.y2);
-  MM := BitmapToMatrix(BMP);
+  BMP := BitmapFromClient(WMM_OUTER.x1, WMM_OUTER.y1, WMM_OUTER.x2, WMM_OUTER.y2);
+  MM  := BitmapToMatrix(BMP);
   FreeBitmap(BMP);
+  
+  best := finder.XCorr(MM, self.worldSample, angleRad);
 
-  feat := finder.Correlate(MM, self.worldSample, compRad);
-  best := finder.FindPeak(feat);
-
-  //find local peak:
-  test := w_imRotate(MM, radians(best.angle) + compRad, False,True);
+  //find local peak - unscaled:
+  test := w_imRotate(MM, angleRad, False, True);
   test := w_getArea(test, WMM_INNER.x1,WMM_INNER.y1,WMM_INNER.x2,WMM_INNER.y2);
-  Result := finder.FindPeakAround(
+  Result := finder.XCorrPeakNear(
+    Point(best.x, best.y),
     self.worldMap,
     test,
-    Point(best.x,best.y),
     20
   );
 
-  Result.x += ((WMM_INNER.x2-WMM_INNER.x1+1) div 2) + 1;
-  Result.y += ((WMM_INNER.y2-WMM_INNER.y1+1) div 2) + 1;
-  finder.topMatch := best.value;
-  finder.mmOffset := best.angle;
+  Result.x += (WMM_INNER.x2-WMM_INNER.x1+1) div 2 + 1;
+  Result.y += (WMM_INNER.y2-WMM_INNER.y1+1) div 2 + 1;
+  finder.similarity := best.value;
 end;
 
 
 (*
- Returns our characters current position. 
- @note:
-   If `ignoreMatchValue` is False it will return (-1,-1) when it's a bad match.
-   This also requires you to set TRSWalker.minMatch 
+  Returns our characters current position. 
+  @note: If `minSimiliarty` is set it will return (-1,-1) when it's less similar than what's expected.
 *)
-function TRSWalker.GetMyPos(ignoreMatchValue:Boolean = True): TPoint;
+function TRSWalker.GetMyPos(minSimiliarty: Double = -$FFFFFFF): TPoint;
 begin
-  if Length(worldMap) = 0 then
+  if Length(self.worldMap) = 0 then
     RaiseException('TRSWalker.GetMyPos -> RSWalker is not set up for this task!');
   
   if (finder.process > 0) and (self.memScanEnabled) then
@@ -237,7 +227,7 @@ begin
   else
     Result := self._getPosCustom();
   
-  if not(ignoreMatchValue) and (self.minMatch > self.finder.topMatch) then
+  if (minSimiliarty > self.finder.similarity) then
     Exit(Point(-1,-1));
 end;
 
@@ -251,21 +241,16 @@ begin
   Result := False;
   if (w_Distance(myPos, pt) < WMM_RAD) then
   begin
-    mmPos.x := (pt.x - myPos.x);
-    mmPos.y := (pt.y - myPos.y);
-    mmPos   := RotatePoint(mmPos, radians(finder.mmOffset), 0,0);
-    mmPos.x += WMM_CX;
-    mmPos.y += WMM_CY;
+    mmPos.x := (pt.x - myPos.x) + WMM_CX;
+    mmPos.y := (pt.y - myPos.y) + WMM_CY;
     Result := True;
   end;
 end;
 
 (*
   Takes the position we are walking to in both it's forms:
-  - mmPt (position on minimap)
-  - worldPt (position in the world)
-  Expects lookup to be fast, if this shows to not be the case, It might work for you
-  to replace ``Distance(Self.GetPos(), worldPt)`` with distance-check to the flag.
+  - mmPt (click position on minimap)
+  - worldPt (goal position in the world map)
   
   Two hooks are called here:
   - onClickEvent(self,box)
@@ -277,10 +262,9 @@ var
   box:TBox;
   pos:TPoint;
 begin
-  if self.anyAngle then
-    mmPt := RotatePoint(mmPt, w_GetCompassAngle(False), WMM_CX,WMM_CY);
+  mmPt := RotatePoint(mmPt, w_GetCompassAngle(False), WMM_CX,WMM_CY);
   
-  if (w_distance(mmPt,Point(WMM_CX,WMM_CY)) <= WMM_RAD-5) and doRand then r := 5;
+  if (w_distance(mmPt,Point(WMM_CX,WMM_CY)) <= WMM_RAD-5) and doRand then r := 4;
   box := [mmPt.x-r, mmPt.y-r, mmPt.x+r, mmPt.y+r];
     
   if Assigned(@self.onClickEvent) then
@@ -296,19 +280,19 @@ begin
     if w_Distance(pos, worldPt) < self.skipClose then
       Break;
     
-    st := GetTickCount64() + 60;
+    st := GetTickCount64() + 65;
     if Assigned(@self.onMoveEvent) then
       self.onMoveEvent(@self, pos);
     
     Wait( Max(1, st-GetTickCount64()) ); //cooldown
-  until (not enabled) or (not w_FlagPresent()) or (GetTickCount64() > t);
+  until (not self.enabled) or (not w_FlagPresent()) or (GetTickCount64() > t);
 end;
 
 
 (*
   Simple method to do 1 step on the minimap.
 *)
-procedure TRSWalker.WalkToPos(worldPos:TPoint; waitFlag:Boolean=True); overload;
+procedure TRSWalker.WalkToPos(worldPos:TPoint; rnd:Int32=0; waitFlag:Boolean=True); overload;
 var
   mmPt:TPoint;
   t:Int64;
@@ -316,15 +300,15 @@ begin
   if not Self.PointToMM(self.GetMyPos(), worldPos, mmPt) then
     Exit();
   
-  if self.anyAngle then
-    mmPt := RotatePoint(mmpt, w_GetCompassAngle(False), WMM_CX,WMM_CY);
+  mmPt := RotatePoint(mmpt, w_GetCompassAngle(False), WMM_CX,WMM_CY);
   
-  w_clickMouse([mmPt.x,mmPt.y,mmPt.x,mmPt.y], mouse_left);
+  w_clickMouse([mmPt.x-rnd,mmPt.y-rnd,mmPt.x+rnd,mmPt.y+rnd], mouse_left);
   if waitFlag then
   begin
     t := GetTickCount64() + 24000;
     repeat
       w_QuickEnableRun(self.minRunEnergy);
+      Wait(25);
     until (not w_FlagPresent()) or (GetTickCount64() > t);
   end;
 end;
@@ -425,14 +409,18 @@ begin
         end;
       end;
   end;
-  
+
+  while w_IsMoving() do Wait(200);
+
   if Result and finalCorrection then
   begin
     Wait(Random(300,600));
     Self.PointToMM(Self.GetMyPos(), path[h], mmPt);
     if w_Distance(Point(WMM_CX,WMM_CY), mmPt) > 10 then
       self.WalkToPos(mmPt, path[h]);
+
+    while w_IsMoving() do Wait(200);
   end;
-  
+
   self.minRunEnergy := tmp;
 end;

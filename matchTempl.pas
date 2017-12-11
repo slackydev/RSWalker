@@ -53,7 +53,7 @@ type
 var
   res:Pointer;
   Ptr:PFloat32;
-  i,j,W,H:Int32;
+  i,W,H:Int32;
 begin
   if (img.data = nil) or (templ.Data = nil) then begin
     RaiseException('One or both the images are empty!');
@@ -83,7 +83,6 @@ end;
 
 function TLibCV.MatchTemplate(image, templ:T2DIntArray; matchAlgo: cvCrossCorrAlgo; normalize:Boolean=False): T2DFloatArray; overload;
 var
-  W,H:Int32;
   patch,img:cvMatrix2D;
 begin
   img := Self.__cvLoadFromMatrix(Image);
@@ -91,4 +90,24 @@ begin
   Result := Self.__MatchTemplate(img,patch,matchAlgo,normalize);
   Self.__cvFreeMatrix(img);
   Self.__cvFreeMatrix(patch);
+end;
+
+function TLibCV.MixedXCorr(image, templ:T2DIntArray): T2DFloatArray;
+var
+  x,y: Int32;
+  r1,r2: T2DFloatArray;
+var
+  patch,img:cvMatrix2D;
+begin
+  img := Self.__cvLoadFromMatrix(Image);
+  patch := Self.__cvLoadFromMatrix(Templ);
+  r1 := Self.__MatchTemplate(img, patch, CV_TM_CCOEFF_NORMED, False);
+  r2 := Self.__MatchTemplate(img, patch, CV_TM_SQDIFF_NORMED, False);
+  Self.__cvFreeMatrix(img);
+  Self.__cvFreeMatrix(patch);
+
+  for y:=0 to High(r1) do
+    for x:=0 to High(r1[0]) do
+      r1[y,x] := ((1+r1[y,x])*(1-r2[y,x])) / 2;
+  Result := r1;
 end;
