@@ -22,8 +22,6 @@ begin
   RSW.Init('world.png');
   AddOnTerminate(@RSW.Free);     //automatic free on termination
   
-  RSW.anyAngle := True;          //walk at any angle (else it's compass(north)-only)
-  
   //a random path ex... 
   path := [Point(2127, 2099), Point(2101, 2085), Point(2068, 2085), Point(2035, 2082)];
   RSW.WalkPath(path);
