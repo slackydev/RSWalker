@@ -1,15 +1,15 @@
 type TRSWUtils = type Pointer;
 var  RSWUtils: TRSWUtils;
 
-function TRSWUtils.InPoly(x,y:Int32; const Poly:TPointArray): Boolean;
+function TRSWUtils.InPoly(p:TPoint; const Poly:TPointArray): Boolean;
 var j,i,H: Int32;
 begin
   H := High(poly);
   j := H;
   Result := False;
   for i:=0 to H do begin
-    if ((poly[i].y < y) and (poly[j].y >= y) or (poly[j].y < y) and (poly[i].y >= y)) then
-      if (poly[i].x+(y-poly[i].y) / (poly[j].y-poly[i].y) * (poly[j].x-poly[i].x) < x) then
+    if ((poly[i].y < p.y) and (poly[j].y >= p.y) or (poly[j].y < p.y) and (poly[i].y >= p.y)) then
+      if (poly[i].x+(p.y-poly[i].y) / (poly[j].y-poly[i].y) * (poly[j].x-poly[i].x) < p.x) then
         Result := not(Result);
     j := i;
   end;
