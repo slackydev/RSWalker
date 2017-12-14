@@ -256,16 +256,18 @@ end;
   - onClickEvent(self,box)
   - onMoveEvent(self,pos)
 *)
-procedure TRSWalker.WalkToPos(mmPt, worldPt:TPoint; doRand:Boolean=False);
+procedure TRSWalker.WalkToPos(mmPt, worldPt:TPoint; rnd:Int32=0; doRand:Boolean=False);
 var
   t,st,r:Int64;
   box:TBox;
   pos:TPoint;
 begin
   mmPt := RotatePoint(mmPt, w_GetCompassAngle(False), WMM_CX,WMM_CY);
-  
-  if (w_distance(mmPt,Point(WMM_CX,WMM_CY)) <= WMM_RAD-5) and doRand then r := 4;
-  box := [mmPt.x-r, mmPt.y-r, mmPt.x+r, mmPt.y+r];
+
+  if (doRand) then
+    while (rnd > 1) and (w_distance(mmPt, [WMM_CX,WMM_CY]) >= WMM_RAD - rnd*Sqrt(2)) do
+      Dec(rnd);
+  box := [mmPt.x-rnd, mmPt.y-rnd, mmPt.x+rnd, mmPt.y+rnd];
     
   if Assigned(@self.onClickEvent) then
     self.onClickEvent(@self, box)
@@ -300,9 +302,9 @@ begin
   if not Self.PointToMM(self.GetMyPos(), worldPos, mmPt) then
     Exit();
   
-  mmPt := RotatePoint(mmpt, w_GetCompassAngle(False), WMM_CX,WMM_CY);
+  mmPt := RotatePoint(mmPt, w_GetCompassAngle(False), WMM_CX,WMM_CY);
   
-  w_clickMouse([mmPt.x-rnd,mmPt.y-rnd,mmPt.x+rnd,mmPt.y+rnd], mouse_left);
+  w_ClickMouse([mmPt.x-rnd, mmPt.y-rnd, mmPt.x+rnd, mmPt.y+rnd], mouse_left);
   if waitFlag then
   begin
     t := GetTickCount64() + 24000;
@@ -319,7 +321,7 @@ end;
  One hook is used here:
  - onWalkEvent(self, myPos);
 *)
-function TRSWalker.WalkPath(Path: TPointArray; finalCorrection:Boolean=False): Boolean;
+function TRSWalker.WalkPath(Path: TPointArray; Rand:Int32=6; FinalCorrection:Boolean=False): Boolean;
 var
   i,prev,h,tmp,attempts:Int32;
   t:Int64;
@@ -366,7 +368,7 @@ begin
             if not(self.enabled) then 
               Exit(True);
             
-            self.WalkToPos(mmPt, path[i], i<>h);
+            self.WalkToPos(mmPt, path[i], Rand, i<>h);
             prev := i;
             t := GetTickCount64() + Random(20000, 25000);
           end;
@@ -399,7 +401,7 @@ begin
             if not(self.enabled) then 
               Exit(True);
             
-            self.WalkToPos(mmPt, path[i], i<>h);
+            self.WalkToPos(mmPt, path[i], Rand, i<>h);
             prev := i;
             t := GetTimeRunning() + Random(20000, 25000);
  	          Break;
