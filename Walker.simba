@@ -258,7 +258,7 @@ end;
 *)
 procedure TRSWalker.WalkToPos(mmPt, worldPt:TPoint; rnd:Int32=0; doRand:Boolean=False);
 var
-  t,st,r:Int64;
+  t,st:Int64;
   box:TBox;
   pos:TPoint;
 begin

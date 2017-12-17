@@ -15,7 +15,7 @@ begin
   end;
 end;
 
-function TRSWUtils.BuildPath(TPA: TPointArray; step:Int32=25): TPointArray;
+function TRSWUtils.BuildPath(TPA: TPointArray; step:Int32=15): TPointArray;
 var
   i,j,l: Int32;
   tmp: TPointArray;

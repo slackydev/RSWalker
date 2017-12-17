@@ -15,7 +15,7 @@
 {$IFNDEF CODEINSIGHT}
 var
   WMM_OUTER:TBox = [570,9,714,159];
-  WMM_INNER:TBox = [18,19,126,127];  //[25,26,119,120];
+  WMM_INNER:TBox = [22,23,122,123];  //[25,26,119,120];
   WMM_RAD:Int32  = 66;               //(safe) Radius of the minimap
   WMM_CX:Int32   = 643;              //minimap center X
   WMM_CY:Int32   = 83;               //minimap center Y    
