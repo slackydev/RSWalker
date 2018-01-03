@@ -1,4 +1,7 @@
 program MapGrabber;
+{$ifndecl GetTickCount64}
+var GetTickCount64: function():UInt64 := @GetTickCount;
+{$endif}
 {$I RSWalker/Walker.simba}
 
 (*

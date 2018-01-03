@@ -146,9 +146,9 @@ function w_IsMoving(): Boolean;
   var
     Before, After: Integer;
   begin
-    Before := BitmapFromClient(Area);
+    Before := BitmapFromClient(Area.x1,Area.y1,Area.x2,Area.y2);
     Wait(WaitTime);
-    After := BitmapFromClient(Area);
+    After := BitmapFromClient(Area.x1,Area.y1,Area.x2,Area.y2);
     Result := CalculatePixelShift(Before, After, [0, 0, (Area.X2 - Area.X1), (Area.Y2 - Area.Y1)]);
     FreeBitmap(Before);
     FreeBitmap(After);
