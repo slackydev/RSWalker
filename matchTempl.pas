@@ -99,7 +99,7 @@ var
 var
   patch,img:cvMatrix2D;
 begin
-  img := Self.__cvLoadFromMatrix(Image);
+  img   := Self.__cvLoadFromMatrix(Image);
   patch := Self.__cvLoadFromMatrix(Templ);
   r1 := Self.__MatchTemplate(img, patch, CV_TM_CCOEFF_NORMED, False);
   r2 := Self.__MatchTemplate(img, patch, CV_TM_SQDIFF_NORMED, False);
