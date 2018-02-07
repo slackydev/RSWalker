@@ -42,7 +42,7 @@ var
 begin
   with Self do
   begin
-    scanRatio  := 6;
+    scanRatio  := 8; //overwritten by TRSWalker
     process    := PID;
     
     if PID > 0 then CheckError(scan.Init(process));
@@ -157,12 +157,19 @@ var
   minimap, tmpLocal, tmpMMap: T2DIntArray;
   match: T2DFloatArray;
   best: TFeaturePoint;
+  //bmp: TMufasaBitmap;
 begin
   Self.UpdateMap(Self.MustUpdateAddr());
   Minimap := RSWUtils.GetMinimap(False,False, self.scanRatio);
 
   tmpMMap  := w_ImSample(Minimap,  Self.ScanRatio);
   tmpLocal := w_ImSample(LocalMap, Self.ScanRatio);
+  //bmp.Init(client.GetMBitmaps);
+  //bmp.DrawMatrix(tmpMMap);
+  //bmp.ResizeEx(RM_Nearest, Length(Minimap[0]), Length(Minimap));
+  //bmp.Debug();
+  //bmp.Free();
+
   match    := LibCV.MixedXCorr(tmpLocal, tmpMmap);
   with w_ArgMax(match) do
   begin
@@ -182,27 +189,27 @@ end;
 procedure TRSPosFinder.DebugPos(p:TPoint; text:String='');
 var
   TPA: TPointArray;
-  BMP: PtrInt;
+  BMP: TMufasaBitmap;
   W,H,_: Int32;
 begin
-  BMP := CreateBitmap(0,0);
-  DrawMatrixBitmap(BMP,self.localMap);
-  GetBitmapSize(BMP,W,H);
-  if not(PointInBox(p, [0,0,W-1,H-1])) then Exit();
-  
-  DrawTPABitmap(BMP, TPAFromLine(0,p.y,W-1,p.y), $00FF00);
-  DrawTPABitmap(BMP, TPAFromLine(p.x,0,p.x,H-1), $00FF00);
+  BMP.Init(client.GetMBitmaps);
+  BMP.DrawMatrix(self.localMap);
+  GetBitmapSize(BMP.GetIndex, W,H);
+  if not(PointInBox(p, [2,2,W-3,H-3])) then Exit();
+
+  BMP.DrawTPA(TPAFromLine(0,p.y,W-1,p.y), $00FF00);
+  BMP.DrawTPA(TPAFromLine(p.x,0,p.x,H-1), $00FF00);
+  BMP.DrawBox(Box(p,2,2), False, $FFFFFF);
 
   if text then
   try
     TPA := TPAFromText(text,'SmallChars07',_,_);
     OffsetTPA(TPA,Point(10,10));
-    DrawTPABitmap(BMP, TPA, $00FF00);
+    BMP.DrawTPA(TPA, $00FF00);
   except
     //nothing;
   end;
   
-  DisplayDebugImgWindow(W,H);
-  DrawBitmapDebugImg(BMP);
-  FreeBitmap(BMP);
+  BMP.Debug();
+  BMP.Free();
 end;

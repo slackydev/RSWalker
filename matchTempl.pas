@@ -16,10 +16,11 @@ type
 var
   LibCV: TLibCV = nil;
 
+
 {-------------------------------------------------------------------------------]
  Raw base for MatchTemplate
 [-------------------------------------------------------------------------------}
-function TLibCV.__cvLoadFromMatrix(var Mat:T2DIntArray): cvMatrix2D;
+function TLibCV.__cvLoadFromMatrix(Mat:T2DIntArray): cvMatrix2D;
 var
   w,h,y:Int32;
   data:TIntegerArray;

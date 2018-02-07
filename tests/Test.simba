@@ -5,14 +5,20 @@ program new;
 var
   RSW:TRSWalker;
   path:TPointArray;
-begin
 
+procedure onMove(sender:TObject; myPos: TPoint);
+begin
+  RSW.Finder.DebugPos(RSW.Finder.GetLocalPos);
+end;
+
+begin
   RSW.Init('images/varrock.png');
   RSW.MemScanEnabled := True;
   RSW.SkipClose := 20;
-
+  RSW.onMoveEvent := @onMove;
   AddOnTerminate(@RSW.Free);
 
   path := [[587, 430], [619, 438], [612, 496], [595, 558], [556, 592], [425, 585], [421, 459], [500, 428], [583, 429]];
   WriteLn RSW.WalkPath(path);
+  RSW.Finder.DebugPos(RSW.Finder.GetLocalPos);
 end.

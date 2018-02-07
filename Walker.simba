@@ -62,7 +62,7 @@ end;
 {$ENDIF}
 
 
-procedure TRSWalker.Init(World: String; PID:Int32=0; AScanRatio:Int32=8);
+procedure TRSWalker.Init(World: String; PID:Int32=0; AScanRatio:Int32=6);
 var
   BMP:Integer;
 
@@ -84,7 +84,7 @@ begin
   begin
     if (PID = 0) then PID := self.TryGetClientID();
     finder.Init(PID);
-    finder.scanRatio := AScanRatio;
+    finder.ScanRatio := AScanRatio;
 
     self.SetDefaultValues();
     
@@ -256,7 +256,7 @@ begin
     if Hypot(flag.X-Minimap.Center.X, flag.Y-Minimap.Center.Y) < skipDist then
       Break;
 
-    st := GetTickCount() + Random(75);
+    st := GetTickCount() + Random(45);
     if Assigned(@self.onMoveEvent) then
       self.onMoveEvent(@self, pos);
     Wait( Max(1, st-GetTickCount()) );
