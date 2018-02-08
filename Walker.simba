@@ -40,11 +40,11 @@ begin
   onWalkEvent  := nil;
   onMoveEvent  := nil;
 
-  skipClose   := 10;
-  minRunEnergy:= 20;
+  SkipClose   := 25;
+  MinRunEnergy:= 20;
   
-  memScanEnabled := True;
-  enabled := True;
+  MemScanEnabled := True;
+  Enabled := True;
 end;
 
 
@@ -183,7 +183,7 @@ end;
 }
 function TRSWalker._GetPosCustom(): TPoint;
 var
-  tmpMMap,Minimap,tmpLocal: T2DIntArray;
+  tmpMMap,Minimap: T2DIntArray;
   match: T2DFloatArray;
   best: TFeaturePoint;
 begin
@@ -197,7 +197,7 @@ begin
     best.y := Y * Finder.ScanRatio;
   end;
 
-  Result := Finder.XCorrPeakNear([best.x, best.y], WorldMap, Minimap, 20);
+  Result   := Finder.XCorrPeakNear([best.x, best.y], WorldMap, Minimap, 20);
   Result.x += Length(minimap[0]) div 2;
   Result.y += Length(minimap   ) div 2;
   Finder.Similarity := best.Value;
@@ -256,12 +256,11 @@ begin
     if Hypot(flag.X-Minimap.Center.X, flag.Y-Minimap.Center.Y) < skipDist then
       Break;
 
-    st := GetTickCount() + Random(45);
+    st := GetTickCount() + Random(50);
     if Assigned(@self.onMoveEvent) then
       self.onMoveEvent(@self, pos);
     Wait( Max(1, st-GetTickCount()) );
-
-  until (not self.Enabled) or (not Minimap.IsPlayerMoving(100)) or (t.IsFinished());
+  until (not self.Enabled) or (not Minimap.IsPlayerMoving(165)) or (t.IsFinished());
 end;
 
 
@@ -394,9 +393,63 @@ begin
       mmPos.x := (FPath[h].x - myPos.x) + Minimap.Center.X;
       mmPos.y := (FPath[h].y - myPos.y) + Minimap.Center.Y;
       self.WalkToPos(mmPos, 1, True);
+      Minimap.WaitPlayerMoving();
     end;
-    Minimap.WaitPlayerMoving();
   end;
 
   self.minRunEnergy := tmp;
+end;
+
+procedure TRSWalker.DebugPos();
+var
+  mx,my,x1,y1,x2,y2,_: Int32;
+  mat: T2DIntArray;
+  BMP, BMP1: TMufasaBitmap;
+  TPA: TPointArray;
+  colors: TIntArray;
+  glob: TPoint;
+begin
+  glob := Self.GetMyPos();
+  x1 := Max(0, glob.x-200);
+  y1 := Max(0, glob.y-200);
+  x2 := Min(x1+400, High(Self.WorldMap[0]));
+  y2 := Min(y1+400, High(Self.WorldMap));
+
+  mat := w_GetArea(Self.WorldMap, x1,y1,x2,y2);
+  mx := Length(mat[0]) div 2;
+  my := Length(mat) div 2;
+
+  BMP1.Init(client.GetMBitmaps);
+  BMP1.DrawMatrix(mat);
+  BMP1.DrawCross([mx,my], 70, $00FF00);
+  BMP1.DrawCircle([mx,mx], 70, False, $0022FF);
+  BMP1.DrawBox(Box(mx-1,my-1,mx+1,my+1), True, $FFFFFF);
+
+  BMP.Init(client.GetMBitmaps);
+  BMP.SetSize(570,420);
+  BMP.DrawClear($403020);
+  BMP1.DrawTransparent(10,10, BMP);
+  BMP1.Free();
+
+  BMP.DrawSystemText(
+    '('+ToStr(glob.x)+', '+ToStr(glob.y)+')',
+    'Courier New', 13,
+    Point(422,16),
+    True,
+    $FFFFFF
+  );
+  TPA    := TPAFromPolygon(Minimap.MaskPoly);
+  colors := GetColors(TPA);
+
+  with GetTPABounds(TPA) do
+  begin
+    TPA.Offset(Point(-X1,-Y1));
+    TPA.Offset(Point(420,40));
+  end;
+  BMP.SetPixels(TPA, Colors);
+
+
+  DisplayDebugImgWindow(BMP.GetWidth(), BMP.GetHeight());
+  DrawBitmapDebugImg(BMP.GetIndex());
+  BMP.Free();
 end;

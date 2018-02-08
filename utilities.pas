@@ -2,7 +2,7 @@ type
   RSWUtils = type Pointer;
 
 var
-  MM_AREA: TBox := [570,11,714,155];//[570,9,714,159];
+  MM_AREA: TBox := [570,12,714,156];//[570,9,714,159];
   MM_CROP: TBox := [0,0,MM_AREA.X2-MM_AREA.X1,MM_AREA.Y2-MM_AREA.Y1];
   MM_RAD: Int32 := 64;
 
@@ -38,7 +38,7 @@ end;
 
 function RSWUtils.MinBoxInRotated(B: TBox; Angle: Double): TBox; static;
 var
-  sinA,cosA,ss,ls,x,wr,hr: Double;
+  sinA,cosA,ss,ls,wr,hr: Double;
   W,H: Int32;
 begin
   W := B.x2-B.x1+1;
@@ -75,7 +75,7 @@ var
 
   procedure ClearCorners();
   var
-    i,color: Int32;
+    i: Int32;
     TPA: TPointArray;
   begin
     TPA := TPAFromPolygon(Minimap.MaskPoly);
