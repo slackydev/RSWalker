@@ -1,52 +1,22 @@
 program new;
-{$H-}
 {$I SRL/OSR.simba}
 {$I RSWalker/Walker.simba}
 
 var
-  finder:TRSPosFinder;
+  RSW:TRSWalker;
+  path:TPointArray;
 
-procedure BackTrace(Addr: PtrUInt; MaxDepth, Depth:Int32);
-var
-  test: array of PtrUInt;
-  i,j: Int32;
-  value: PtrUInt;
+procedure onMove(sender:TObject; myPos: TPoint);
 begin
-  for i := -48 to 48 with 4 do
-  begin
-    value := addr+i;
-    test := finder.scan.Search(@value, 4,4);
-    for j:=0 to High(test) do
-    begin
-      if test[j] < $FFFFFF then
-        continue;
-
-      WriteLn('  '*Depth, Format('%4d ($%s)', [i, IntToHex(test[j],8)]));
-      if Depth < MaxDepth then
-        BackTrace(test[j], MaxDepth, Depth+1);
-    end;
-  end;
+  //RSW.Finder.DebugPos(RSW.Finder.GetLocalPos);
 end;
 
-
 begin
-  finder.Init(w_getClientPID());
-  finder.UpdateMap(True);
-  WRiteLn(IntToHex(finder.test,8));
-  WRiteLn(IntToHex(finder.addr,8));
+  RSW.Init('world.png');
+  RSW.MemScanEnabled := True;
+  RSW.SkipClose := 20;
+  RSW.onMoveEvent := @onMove;
+  AddOnTerminate(@RSW.Free);
 
-  BackTrace(finder.test, 2,0);
-
-  AddOnTerminate(@finder.Free);
-  (*
-  while 1 do
-  begin
-    t := PerformanceTimer();
-    loc := finder.GetLocalPos();
-    ClearDebug();
-    WriteLn('>>> ', loc,' used: ', Round(PerformanceTimer() - t,3),'ms' );
-    WriteLn('>>> 0x', HexStr(finder.addr));
-    finder.DebugPos(loc);
-  end;
-  *)
-end;
+  WriteLn RSW.WebWalkF2P(P_EDGEVILLE);
+end.

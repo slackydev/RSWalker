@@ -4,6 +4,7 @@
   Project URL: https://github.com/WarPie/RSWalker
   License: GNU GPL (http://www.gnu.org/licenses/gpl.html)
 [==============================================================================}
+{$IFDEF HINTS}{$DEFINE !HAD_HINTS}{$H-}{$ENDIF}
 {$loadlib ../Includes/RSWalker/libWalker.dll}
 {$include_once MatchTempl.pas}
 {$include_once MemScan.pas}
@@ -400,6 +401,15 @@ begin
   self.minRunEnergy := tmp;
 end;
 
+function TRSWalker.WebWalkF2P(Destination: TPoint; Rand:Int32=6; FinalCorrection:Boolean=False): Boolean;
+var
+  path: TPointArray;
+begin
+  path := RSWUtils.PathBetween(F2P_Graph, Self.GetMyPos, Destination);
+  Result := Self.WalkPath(path, Rand, FinalCorrection);
+end;
+
+
 procedure TRSWalker.DebugPos();
 var
   mx,my,x1,y1,x2,y2,_: Int32;
@@ -453,3 +463,5 @@ begin
   DrawBitmapDebugImg(BMP.GetIndex());
   BMP.Free();
 end;
+
+{$IFDEF !HAD_HINTS}{$H+}{$ENDIF}
