@@ -401,11 +401,11 @@ begin
   self.minRunEnergy := tmp;
 end;
 
-function TRSWalker.WebWalkF2P(Destination: TPoint; Rand:Int32=6; FinalCorrection:Boolean=False): Boolean;
+function TRSWalker.WebWalk(Destination: TPoint; Rand:Int32=6; FinalCorrection:Boolean=False): Boolean;
 var
   path: TPointArray;
 begin
-  path := RSWUtils.PathBetween(F2P_Graph, Self.GetMyPos, Destination);
+  path := RSWUtils.PathBetween(RSW_Graph, Self.GetMyPos, Destination);
   Result := Self.WalkPath(path, Rand, FinalCorrection);
 end;
 

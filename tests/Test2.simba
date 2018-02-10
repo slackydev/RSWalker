@@ -18,5 +18,5 @@ begin
   RSW.onMoveEvent := @onMove;
   AddOnTerminate(@RSW.Free);
 
-  WriteLn RSW.WebWalkF2P(P_EDGEVILLE);
+  WriteLn RSW.WebWalk(P_EDGEVILLE);
 end.
