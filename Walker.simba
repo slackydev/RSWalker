@@ -41,7 +41,7 @@ begin
   onWalkEvent  := nil;
   onMoveEvent  := nil;
 
-  SkipClose   := 25;
+  SkipClose   := 30;
   MinRunEnergy:= 20;
   
   MemScanEnabled := True;
@@ -328,8 +328,6 @@ begin
     begin
       nearest := distance;
       i := j;
-      if distance < MM_RAD then
-        Break;
     end;
   end;
 
