@@ -215,8 +215,8 @@ begin
   n1 := RSWUtils.FindNearestNode(Graph, p);
   n2 := RSWUtils.FindNearestNode(Graph, q);
   nodes := RSWUtils.FindPath(Graph, n1,n2);
-  if Length(nodes) = 0 then
-    RaiseException('Points `',p,'` and `',q,'` does not connect');
+  if (Length(nodes) = 0) then
+    RaiseException('Points `'+ToStr(p)+'` and `'+ToStr(q)+'` does not connect');
 
   Result += p;
   for i:=0 to High(nodes) do
