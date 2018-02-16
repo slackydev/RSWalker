@@ -49,7 +49,7 @@ begin
 end;
 
 
-function TRSWalker.TryGetClientID(): UInt32;
+function TRSWalker.TryGetClientID(): UInt32; static;
 var
   H:PtrUInt;
 begin
@@ -223,6 +223,23 @@ begin
     Exit(Point(-1,-1));
 end;
 
+(*
+  Returns the tile position on the mainscreen as a rectangle
+*)
+function TRSWalker.GetTileMSEx(Me, Loc: TPoint; Height:Double=0; Offx,Offy:Double=0): TRectangle;
+var
+  angle: Double;
+begin
+  Loc   := Point(MM2MS.MMCX, MM2MS.MMCY) + (Loc - Me);
+  angle := Minimap.GetCompassAngle(False);
+  Loc   := Loc.Rotate(angle, Point(MM2MS.MMCX, MM2MS.MMCY));
+  Result := Minimap.VecToMSRect(Vec3(Loc.x - offx, Loc.y - offy, Height), angle);
+end;
+
+function TRSWalker.GetTileMS(Loc: TPoint; Height:Double=0; Offx,Offy:Double=0): TRectangle;
+begin
+  Result := GetTileMSEx(Self.GetMyPos(), Loc, Height, Offx, Offy);
+end;
 
 (*
   Takes the position we are walking to in both it's forms:
@@ -333,7 +350,7 @@ begin
 
   // generate a dense path from starting point
   FPath := Copy(path, i, Length(path)-i);
-  FPath := RSWUtils.BuildPath([myPos]+FPath, 6);
+  FPath := RSWUtils.BuildPath([myPos]+FPath, 3,8);
 
   // do the walk
   t.Init(Random(23000, 27000));
@@ -406,7 +423,6 @@ begin
   path := RSWUtils.PathBetween(RSW_Graph, Self.GetMyPos, Destination);
   Result := Self.WalkPath(path, Rand, FinalCorrection);
 end;
-
 
 procedure TRSWalker.DebugPos();
 var

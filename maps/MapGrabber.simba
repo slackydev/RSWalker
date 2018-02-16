@@ -1,7 +1,5 @@
 program MapGrabber;
-{$ifndecl GetTickCount64}
-var GetTickCount64: function():UInt64 := @GetTickCount;
-{$endif}
+{$I SRL/OSR.simba}
 {$I RSWalker/Walker.simba}
 
 (*
@@ -41,7 +39,7 @@ var
   action,i:Int32;
   bmp:Integer;
 begin
-  finder.Init(w_GetClientPID());
+  finder.Init(TRSWalker.TryGetClientID());
   if not DirectoryExists(PATH) then
     RaiseException('"'+PATH+'" doesn''t exist');
 
