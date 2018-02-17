@@ -59,7 +59,7 @@ begin
     j := 0;
     while j < High(tmp) do
     begin
-      Result += TPA[j];
+      Result += tmp[j];
       Inc(j, Random(minStep, maxStep));
     end;
   end;
