@@ -193,7 +193,7 @@ begin
   match   := LibCV.MixedXCorr(WorldSample, tmpMmap);
   with w_ArgMax(match) do
   begin
-    best.Value := match[X,Y];
+    best.Value := match[Y,X];
     best.x := X * Finder.ScanRatio;
     best.y := Y * Finder.ScanRatio;
   end;

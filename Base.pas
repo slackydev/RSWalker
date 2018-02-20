@@ -70,8 +70,12 @@ end;
 function TRSPosFinder.ValidMapAddr(address:PtrUInt): Boolean;
 var data:Int32;
 begin
-  data := BytesToInt( self.scan.CopyMem(address+W_SIZE_OFFSET,4,False) );
-  Result := (data = self.bufferW * self.bufferH)
+  data := BytesToInt( self.scan.CopyMem(address+W_SIZE_OFFSET,4,False));
+  if (data = self.bufferW * self.bufferH) then
+  begin
+    data := BytesToInt(self.scan.CopyMem(address+W_MAP_OFFSET,4,False));
+    Result := data = 0;
+  end;
 end;
 
 
@@ -170,10 +174,10 @@ begin
   //bmp.Debug();
   //bmp.Free();
 
-  match    := LibCV.MixedXCorr(tmpLocal, tmpMmap);
+  match := LibCV.MixedXCorr(tmpLocal, tmpMmap);
   with w_ArgMax(match) do
   begin
-    best.Value := match[X,Y];
+    best.Value := match[Y,X];
     best.x := X * self.ScanRatio;
     best.y := Y * self.ScanRatio;
   end;
