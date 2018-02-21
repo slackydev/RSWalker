@@ -126,7 +126,7 @@ begin
   FreeBitmap(BMP);
   Result := w_ImRotate(Result, th, False, Smooth);
   B := RSWUtils.MinBoxInRotated(MM_CROP, th);
-  while B.Width  > 110 do begin B.x2 -= 1; B.x1 += 1; end;
+  while B.Width  > 112 do begin B.x2 -= 1; B.x1 += 1; end;
   while B.Height > 100 do begin B.y2 -= 1; B.y1 += 1; end;
   Result := w_GetArea(Result, B.x1,B.y1,B.x2,B.y2);
 

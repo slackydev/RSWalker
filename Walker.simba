@@ -293,7 +293,7 @@ begin
   myPos := self.GetMyPos();
   mmPos.x := (WorldPos.x - myPos.x) + minimap.Center.X;
   mmPos.y := (WorldPos.y - myPos.y) + minimap.Center.Y;
-  if (Hypot(myPos.x-myPos.x, myPos.y-myPos.y) > MM_RAD) then
+  if (Hypot(myPos.x-WorldPos.x, myPos.y-WorldPos.y) > MM_RAD) then
     Exit(False);
 
   mmPos := RotatePoint(mmPos, Minimap.GetCompassAngle(False), Minimap.Center.X, Minimap.Center.Y);
@@ -440,18 +440,18 @@ begin
   y2 := Min(y1+400, High(Self.WorldMap));
 
   mat := w_GetArea(Self.WorldMap, x1,y1,x2,y2);
-  mx := Length(mat[0]) div 2;
-  my := Length(mat) div 2;
+  mx := glob.x - x1;
+  my := glob.y - y1;
 
   BMP1.Init(client.GetMBitmaps);
   BMP1.DrawMatrix(mat);
-  BMP1.DrawCross([mx,my], 70, $00FF00);
-  BMP1.DrawCircle([mx,mx], 70, False, $0022FF);
-  BMP1.DrawBox(Box(mx-1,my-1,mx+1,my+1), True, $FFFFFF);
+  BMP1.LineTo(Point(0,my), Point(x2-x1,my), $00FF00);
+  BMP1.LineTo(Point(mx,0), Point(mx,y2-y1), $00FF00);
+  BMP1.DrawBox(Box(mx-2,my-2,mx+2,my+2), False, $FFFFFF);
 
   BMP.Init(client.GetMBitmaps);
-  BMP.SetSize(570,420);
-  BMP.DrawClear($403020);
+  BMP.SetSize(560,420);
+  BMP.DrawClear($403027);
   BMP1.DrawTransparent(10,10, BMP);
   BMP1.Free();
 
@@ -462,16 +462,12 @@ begin
     True,
     $FFFFFF
   );
-  TPA    := TPAFromPolygon(Minimap.MaskPoly);
-  colors := GetColors(TPA);
 
-  with GetTPABounds(TPA) do
-  begin
-    TPA.Offset(Point(-X1,-Y1));
-    TPA.Offset(Point(420,40));
-  end;
-  BMP.SetPixels(TPA, Colors);
-
+  mat := RSWUtils.GetMinimap(True,False);
+  BMP1.Init(client.GetMBitmaps);
+  BMP1.DrawMatrix(mat);
+  BMP1.DrawTransparent(426,40, BMP);
+  BMP1.Free();
 
   DisplayDebugImgWindow(BMP.GetWidth(), BMP.GetHeight());
   DrawBitmapDebugImg(BMP.GetIndex());

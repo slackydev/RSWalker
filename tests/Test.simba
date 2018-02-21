@@ -12,7 +12,8 @@ begin
 end;
 
 begin
-  RSW.Init('images/varrock.png');
+  RSW.Init('world.png');
+
   RSW.MemScanEnabled := True;
   RSW.SkipClose := 20;
   RSW.onMoveEvent := @onMove;
@@ -22,5 +23,5 @@ begin
   //WriteLn RSW.WalkPath(path);
 
   while True do
-    RSW.Finder.DebugPos(RSW.Finder.GetLocalPos);
+    RSW.DebugPos();
 end.
