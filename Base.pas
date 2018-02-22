@@ -178,13 +178,13 @@ begin
   with w_ArgMax(match) do
   begin
     best.Value := match[Y,X];
-    best.x := X * self.ScanRatio;
-    best.y := Y * self.ScanRatio;
+    best.X := X * self.ScanRatio;
+    best.Y := Y * self.ScanRatio;
   end;
 
   Result := XCorrPeakNear([best.x, best.y], LocalMap, Minimap, 20);
-  Result.x += Length(minimap[0]) div 2;
-  Result.y += Length(minimap   ) div 2;
+  Result.X += Length(minimap[0]) div 2;
+  Result.Y += Length(minimap   ) div 2;
 
   Self.Similarity := best.Value;
 end;

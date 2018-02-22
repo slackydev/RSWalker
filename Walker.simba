@@ -194,13 +194,13 @@ begin
   with w_ArgMax(match) do
   begin
     best.Value := match[Y,X];
-    best.x := X * Finder.ScanRatio;
-    best.y := Y * Finder.ScanRatio;
+    best.X := X * Finder.ScanRatio;
+    best.Y := Y * Finder.ScanRatio;
   end;
 
   Result   := Finder.XCorrPeakNear([best.x, best.y], WorldMap, Minimap, 20);
-  Result.x += Length(minimap[0]) div 2;
-  Result.y += Length(minimap   ) div 2;
+  Result.X += Length(minimap[0]) div 2;
+  Result.Y += Length(minimap   ) div 2;
   Finder.Similarity := best.Value;
 end;
 
