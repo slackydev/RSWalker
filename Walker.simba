@@ -316,7 +316,7 @@ end;
  One hook is used here:
  - onWalkEvent(self, myPos);
 *)
-function TRSWalker.WalkPath(Path: TPointArray; Rand:Int32=6; FinalCorrection:Boolean=False): Boolean;
+function TRSWalker.WalkPath(Path: TPointArray; Rand:Int32=4; FinalCorrection:Boolean=False): Boolean;
 var
   i,j,h,prev,tmp,attempts: Int32;
   nearest,distance: Double;
@@ -397,7 +397,7 @@ begin
     t.Init(Random(20000, 25000));
   end;
 
-  Minimap.WaitPlayerMoving();
+  Minimap.WaitPlayerMoving(True,30000,220);
   myPos  := Self.GetMyPos();
   Result := Hypot(myPos.x-FPath[h].x, myPos.y-FPath[h].y) < 16;
 
@@ -409,14 +409,14 @@ begin
       mmPos.x := (FPath[h].x - myPos.x) + Minimap.Center.X;
       mmPos.y := (FPath[h].y - myPos.y) + Minimap.Center.Y;
       self.WalkToPos(mmPos, 1, True);
-      Minimap.WaitPlayerMoving();
+      Minimap.WaitPlayerMoving(True,30000,220);
     end;
   end;
 
   self.minRunEnergy := tmp;
 end;
 
-function TRSWalker.WebWalk(Destination: TPoint; Rand:Int32=6; FinalCorrection:Boolean=False): Boolean;
+function TRSWalker.WebWalk(Destination: TPoint; Rand:Int32=4; FinalCorrection:Boolean=False): Boolean;
 var
   path: TPointArray;
 begin
