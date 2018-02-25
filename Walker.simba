@@ -17,6 +17,7 @@ type
   
   TRSWalker = record
     WorldMap, worldSample: T2DIntArray;
+    Graph: TWebGraph;
     SkipClose: Int32;
     MinRunEnergy: Int32;
     
@@ -43,7 +44,8 @@ begin
 
   SkipClose   := 30;
   MinRunEnergy:= 20;
-  
+  Graph       := RSW_Graph;
+
   MemScanEnabled := True;
   Enabled := True;
 end;
@@ -416,12 +418,15 @@ begin
   self.minRunEnergy := tmp;
 end;
 
-function TRSWalker.WebWalk(Destination: TPoint; Rand:Int32=4; FinalCorrection:Boolean=False): Boolean;
+function TRSWalker.WebWalk(Destination: TPoint; ClickRnd:Int32=4; PathRnd:Double=0; FinalCorrection:Boolean=False): Boolean;
 var
   path: TPointArray;
 begin
-  path := RSWUtils.PathBetween(RSW_Graph, Self.GetMyPos, Destination);
-  Result := Self.WalkPath(path, Rand, FinalCorrection);
+  if (PathRnd > 1) or (PathRnd < 0) then
+    RaiseException(erException, 'TRSWalker.WebWalk -> PathRnd should be in the range `0..1` where `1` is max');
+
+  path   := Self.Graph.PathBetween(Self.GetMyPos, Destination, PathRnd);
+  Result := Self.WalkPath(path, ClickRnd, FinalCorrection);
 end;
 
 procedure TRSWalker.DebugPos();
