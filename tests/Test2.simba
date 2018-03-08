@@ -6,9 +6,9 @@ var
   RSW:TRSWalker;
   path:TPointArray;
 
-procedure onMove(sender:TObject; myPos: TPoint);
+procedure onMove(sender: PRSWalker);
 begin
-  //RSW.Finder.DebugPos(RSW.Finder.GetLocalPos);
+  RSW.Finder.DebugPos(RSW.Finder.GetLocalPos);
 end;
 
 begin
@@ -18,5 +18,5 @@ begin
   RSW.onMoveEvent := @onMove;
   AddOnTerminate(@RSW.Free);
 
-  WriteLn RSW.WebWalk(P_EDGEVILLE);
+  WriteLn RSW.WebWalk('Alkharid Mine');
 end.

@@ -12,15 +12,18 @@
 {$include_once Base.pas}
 
 type
-  TOnWalkEvent = procedure(sender:TObject; myPos: TPoint);
-  TOnMoveEvent = procedure(sender:TObject; myPos: TPoint);
+  PRSWalker = ^TRSWalker;
+
+  TOnWalkEvent = procedure(Sender: PRSWalker; MyPos: TPoint);
+  TOnMoveEvent = procedure(Sender: PRSWalker);
   
   TRSWalker = record
     WorldMap, worldSample: T2DIntArray;
     Graph: TWebGraph;
     SkipClose: Int32;
     MinRunEnergy: Int32;
-    
+    KeepMouseActive: Boolean;
+
     Finder: TRSPosFinder;
     MemScanEnabled: Boolean;
     LocalMap: T2DIntArray;
@@ -249,13 +252,13 @@ end;
   - worldPt (goal position in the world map)
   
   Two hooks are called here:
-  - onMoveEvent(self,pos)
+  - onMoveEvent(self)
 *)
 procedure TRSWalker.WalkToPos(mmPos:TPoint; Rnd:Int32=0; doRand:Boolean=False);
 var
-  st: Int64;
+  i,st: Int64;
   t: TCountDown;
-  pos,flag: TPoint;
+  flag: TPoint;
   skipDist: Double;
 begin
   mmPos := RotatePoint(mmPos, Minimap.GetCompassAngle(False), Minimap.Center.X, Minimap.Center.Y);
@@ -268,18 +271,19 @@ begin
   mouse.Click(mmPos, rnd, mouse_left);
   t.Init(25000);
   repeat
-    if Minimap.GetRunEnergy >= self.MinRunEnergy then 
+    if  (i mod 2 = 0) and (Minimap.GetRunEnergy >= self.MinRunEnergy) then
       Minimap.ToggleRun(True);
-    
+
     flag := [0,0];
     Minimap.FindFlag(flag);
     if Hypot(flag.X-Minimap.Center.X, flag.Y-Minimap.Center.Y) < skipDist then
       Break;
 
-    st := GetTickCount() + Random(50);
+    st := GetTickCount() + Random(60);
     if Assigned(@self.onMoveEvent) then
-      self.onMoveEvent(@self, pos);
+      self.onMoveEvent(@self);
     Wait( Max(1, st-GetTickCount()) );
+
   until (not self.Enabled) or (not Minimap.IsPlayerMoving(165)) or (t.IsFinished());
 end;
 
@@ -427,6 +431,17 @@ begin
 
   path   := Self.Graph.PathBetween(Self.GetMyPos, Destination, PathRnd);
   Result := Self.WalkPath(path, ClickRnd, FinalCorrection);
+end;
+
+function TRSWalker.WebWalk(Destination: String; ClickRnd:Int32=4; PathRnd:Double=0; FinalCorrection:Boolean=False): Boolean; overload;
+var
+  dstNode: Int32;
+begin
+  dstNode := Self.Graph.FindNode(Destination);
+  if dstNode = -1 then
+    RaiseException(erException, 'TRSWalker.WebWalk -> No node named `'+Destination+'` exists');
+
+  Result := Self.WebWalk(Self.Graph.Nodes[dstNode], ClickRnd, PathRnd, FinalCorrection);
 end;
 
 procedure TRSWalker.DebugPos();
