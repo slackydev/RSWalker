@@ -1,0 +1,226 @@
+program MapBuilder;
+{$I SRL/OSR.simba}
+{$I RSWalker/Walker.simba}
+// all you have to do is to run around and have runescape load new world regions
+// while tihs tool puzzles together each new region to build a single map.
+//
+// Sometimes a build can take a minute, but usually within seconds.
+// Just dont try to go to fast, step back if it gets stuck, maybe log in and out
+// while it's running in such a case (this will generate a new region).
+
+const
+  PATH = 'C:\Simba\Includes\CustomMap.png';  //change it to where u wanna save
+  LOAD_MAP = TRUE;
+  REBUILD_TIMER = 30000;    {rebuild world map every}
+  BACKUP_TIMER  = 10*60000; {save a .bac world map every}
+
+var
+  ResMap: TMufasaBitmap;
+  Finder: TRSPosFinder;
+  LastSaveT, LastBackT: Int64;
+
+procedure TMufasaBitmap.DrawTo(X,Y: Int32; var Image: TMufasaBitmap);
+var
+  tmp: TMufasaBitmap;
+  x1,y1,W,H: Int32;
+  xx,yy,R1,G1,B1,R2,G2,B2: Int32;
+begin
+  tmp.Init(client.GetMBitmaps);
+
+  W := Max(Image.GetWidth  + Abs(Min(0,X)), Self.GetWidth()  + X);
+  H := Max(Image.GetHeight + Abs(Min(0,Y)), Self.GetHeight() + Y);
+
+  tmp.SetSize(W,H);
+  Image.DrawTransparent(Abs(Min(X,0)), Abs(Min(Y,0)), tmp);
+
+  // Self.DrawTransparent(Max(0, X), Max(0, Y), tmp);
+  begin // smoother draw instead
+    x1 := Max(0, X); y1 := Max(0, Y);
+    for yy:=0 to Self.GetHeight-1 do
+      for xx:=0 to Self.GetWidth-1 do
+      begin
+        ColorToRGB(tmp.GetPixel(x1+xx, y1+yy), R1,G1,B1);
+        if (R1=0) and (G1=0) and (B1=0) then
+          tmp.SetPixel(x1+xx, y1+yy, Self.GetPixel(xx,yy))
+        else
+        begin
+          ColorToRGB(Self.GetPixel(xx,yy), R2,G2,B2);
+          tmp.SetPixel(x1+xx, y1+yy, RGBtoColor((R1*3+R2) div 4, (G1*3+G2) div 4, (B1*3+B2) div 4));
+        end;
+      end;
+  end;
+  Image.Free();
+  Image := tmp;
+end;
+
+function AddPiece(Piece: TMufasaBitmap): Boolean;
+
+  function AssertValidMatch(World, Piece: TMufasaBitmap; pt: TPoint; Tol:Int32; Match:Double): Boolean;
+  var
+    x,y,W,H,WorldW,WorldH,color,count,SAD:Int32;
+    c1,c2:TRGB32;
+  begin
+    GetBitmapSize(Piece.GetIndex, W,H);
+    GetBitmapSize(World.GetIndex, WorldW, WorldH);
+
+    WriteLn('>>> Validating location');
+    SAD := 0;
+    for y:=0 to H-1 do
+      for x:=0 to W-1 do
+      begin
+        if ((x+pt.x >= 0) and (y+pt.y >= 0)) and ((x+pt.x < WorldW) and (y+pt.y < WorldH)) then
+        begin
+          color := World.GetPixel(x+pt.x,y+pt.y);
+          if color = 0 then continue;
+          c1 := TRGB32(color);
+          c2 := TRGB32(Piece.GetPixel(x,y));
+          if (Abs(c1.R-c2.R) < Tol) and
+             (Abs(c1.G-c2.G) < Tol) and
+             (Abs(c1.B-c2.B) < Tol) then
+            Inc(SAD);
+          Inc(count);
+        end;
+      end;
+    Result := SAD / Max(1,count) >= Match;
+    if Result then
+      WriteLn('>>> Validated location (',pt.x, ', ',pt.y,')')
+    else
+      WriteLn('>>> Invalid location (',pt.x, ', ',pt.y,') -> ', SAD / Max(1,count))
+
+    //WriteLn(SAD / Max(1,count), ' at ', pt,', sz = ', [WorldW, WorldH]);
+  end;
+
+  function Find(Sub, Map: TMufasaBitmap; out PT: TPoint): Boolean;
+  var
+    x,y,W,H: Int32;
+    OldTarget, NewTarget: NativeInt;
+    TL,BL,TR,BR: TMufasaBitmap;
+  begin
+    OldTarget := GetImageTarget;
+    NewTarget := SetTargetBitmap(Map.GetIndex());
+
+    W := Sub.GetWidth();
+    H := Sub.GetHeight();
+
+    TL := Sub.Copy(0,     0,     130, 130); TL.SetList(client.GetMBitmaps); client.GetMBitmaps.AddBMP(TL);
+    TR := Sub.Copy(W-131, 0,     W-1, 130); TR.SetList(client.GetMBitmaps); client.GetMBitmaps.AddBMP(TR);
+    BL := Sub.Copy(0,     H-131, 130, H-1); BL.SetList(client.GetMBitmaps); client.GetMBitmaps.AddBMP(BL);
+    BR := Sub.Copy(W-131, H-131, W-1, H-1); BR.SetList(client.GetMBitmaps); client.GetMBitmaps.AddBMP(BR);
+
+    if (not Result) then
+    begin
+      WriteLn('>>> Searching for fitting location [1]');
+      if (Result := FindBitmapTolerance(TL.GetIndex(), x,y, 50)) then
+        PT := [x,y];
+      Result := AssertValidMatch(Map, Sub, PT, 55, 0.999);
+    end;
+
+    if (not Result) then
+    begin
+      WriteLn('>>> Searching for fitting location [2]');
+      if (Result := FindBitmapTolerance(TR.GetIndex(), x,y, 50)) then
+        PT := [x-(W-131), y];
+      Result := AssertValidMatch(Map, Sub, PT, 55, 0.999)
+    end;
+
+    if (not Result) then
+    begin
+      WriteLn('>>> Searching for fitting location [3]');
+      if (Result := FindBitmapTolerance(BL.GetIndex(), x,y, 50)) then
+        PT := [x, y-(H-131)];
+      Result := AssertValidMatch(Map, Sub, PT, 55, 0.999)
+    end;
+
+    if (not Result) then
+    begin
+      WriteLn('>>> Searching for fitting location [4]');
+      if (Result := FindBitmapTolerance(BR.GetIndex(), x,y, 50)) then
+        PT := [x-(W-131), y-(H-131)];
+      Result := AssertValidMatch(Map, Sub, PT, 55, 0.999)
+    end;
+
+    TL.Free();
+    TR.Free();
+    BL.Free();
+    BR.Free();
+    FreeTarget(NewTarget);
+    SetImageTarget(OldTarget);
+  end;
+
+var
+  pt: TPoint;
+begin
+  if ResMap = nil then
+  begin
+    ResMap.Init(client.GetMBitmaps);
+    Piece.DrawTo(0,0,ResMap);
+    Exit(True);
+  end;
+
+  if Find(Piece, ResMap, PT) then
+  begin
+    Piece.DrawTo(pt.x,pt.y, ResMap);
+    Result := True;
+    if (GetTickCount()-LastSaveT > REBUILD_TIMER) then
+    begin
+      ResMap.SaveToFile(PATH);
+      LastSaveT := GetTickCount();
+    end;
+
+    if (GetTickCount()-LastBackT > BACKUP_TIMER) then
+    begin
+      ResMap.SaveToFile(PATH+'.bak');
+      LastBackT := GetTickCount();
+    end;
+  end else
+  begin
+    WriteLn('Warning: Failed to add piece, please walk back');
+    Wait(5000);
+  end;
+end;
+
+
+var
+  bmp, prev: TMufasaBitmap;
+  t: Double;
+
+procedure OnTerminate();
+begin
+  finder.Free();
+  ResMap.Free();
+  prev.Free();
+end;
+
+begin
+  srl.Options := [];
+  finder.Init(TRSWalker.TryGetClientID());
+  AddOnTerminate('OnTerminate');
+
+  if LOAD_MAP then
+  begin
+    ResMap.Init(client.GetMBitmaps);
+    ResMap.LoadFromFile(PATH);
+  end;
+
+  while True do
+  begin
+    finder.GetLocalPos();
+    bmp.Init(client.GetMBitmaps);
+    bmp.DrawMatrix(finder.localMap);
+    bmp.Crop(65,65, 511-65,511-65);
+
+    if (prev = nil) or (w_imCompareAt(bmp.ToMatrix, prev.ToMatrix, Point(0,0), 1) < 1) then
+    begin
+      WriteLn('Rebuilding map... Please wait, this might take some time');
+      t := PerformanceTimer();
+      if AddPiece(bmp) then
+      begin
+        if (prev <> nil) then prev.Free();
+        prev := bmp;
+        WriteLn('Map rebuilt in ', PerformanceTimer-t,'ms');
+      end else
+        BMP.Free();
+    end else
+      bmp.Free();
+  end;
+end.
