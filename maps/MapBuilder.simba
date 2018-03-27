@@ -9,7 +9,7 @@ program MapBuilder;
 // while it's running in such a case (this will generate a new region).
 
 const
-  PATH = 'C:\Simba\Includes\CustomMap.png';  //change it to where u wanna save
+  PATH = 'C:\Simba\Includes\Test.png';  //change it to where u wanna save
   LOAD_MAP = TRUE;
   REBUILD_TIMER = 30000;    {rebuild world map every}
   BACKUP_TIMER  = 10*60000; {save a .bac world map every}
@@ -196,7 +196,7 @@ begin
   finder.Init(TRSWalker.TryGetClientID());
   AddOnTerminate('OnTerminate');
 
-  if LOAD_MAP then
+  if (LOAD_MAP) and FileExists(PATH) then
   begin
     ResMap.Init(client.GetMBitmaps);
     ResMap.LoadFromFile(PATH);
