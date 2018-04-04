@@ -316,6 +316,28 @@ begin
   end;
 end;
 
+
+(*
+  Waits until your player is finished moving, while calling move event.
+*)
+procedure TRSWalker.WaitPlayerMoving(TimeOut: Int32 = 30000; MinShift: Int32 = 220);
+var
+  T: UInt64;
+begin
+  T := GetTickCount() + TimeOut;
+
+  while (T > GetTickCount()) do
+  begin
+    if Assigned(@Self.OnMoveEvent) then
+      Self.OnMoveEvent(@Self);
+
+    if (not Minimap.isFlagPresent()) and (not Minimap.isPlayerMoving(MinShift)) then
+      Break;
+    Wait(Random(50, 100));
+  end;
+end;
+
+
 (*
  Walks a path..
  
@@ -403,7 +425,7 @@ begin
     t.Init(Random(20000, 25000));
   end;
 
-  Minimap.WaitPlayerMoving(True,30000,220);
+  self.WaitPlayerMoving();
   myPos  := Self.GetMyPos();
   Result := Hypot(myPos.x-FPath[h].x, myPos.y-FPath[h].y) < 16;
 
@@ -415,7 +437,7 @@ begin
       mmPos.x := (FPath[h].x - myPos.x) + Minimap.Center.X;
       mmPos.y := (FPath[h].y - myPos.y) + Minimap.Center.Y;
       self.WalkToPos(mmPos, 1, True);
-      Minimap.WaitPlayerMoving(True,30000,220);
+      self.WaitPlayerMoving();
     end;
   end;
 
