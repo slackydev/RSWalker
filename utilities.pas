@@ -51,10 +51,7 @@ function TRSWUtils.LinesIntersect(p,q:array[0..1] of TPoint; out i:TPoint): Bool
 var
   dx,dy,d: TPoint;
   dt,s,t: Double;
-  function Det(a,b: TPoint): Int64;
-  begin
-    Result := a.x*b.y - a.y*b.x;
-  end;
+  function Det(a,b: TPoint): Int64; begin Result := a.x*b.y - a.y*b.x; end;
 begin
   dx := [p[0].x - p[1].x, q[0].x - q[1].x];
   dy := [p[0].y - p[1].y, q[0].y - q[1].y];

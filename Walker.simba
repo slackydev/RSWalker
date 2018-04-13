@@ -5,8 +5,8 @@
   License: GNU GPL (http://www.gnu.org/licenses/gpl.html)
 [==============================================================================}
 {$IFDEF HINTS}{$DEFINE !HAD_HINTS}{$H-}{$ENDIF}
-{$loadlib ../Includes/RSWalker/libWalker.dll}
-{$include_once MatchTempl.pas}
+{$loadlib ../Includes/RSWalker/libWalker}
+{$IFNDECL MatchTemplate}{$loadlib ../Includes/RSWalker/matchTempl}{$ENDIF}
 {$include_once MemScan.pas}
 {$include_once Utilities.pas}
 {$include_once Base.pas}
@@ -140,8 +140,7 @@ begin
   locSample := w_ImSample(loc, Finder.scanRatio);
   shift := Point(pt.x-B.x1, pt.y-B.y1);
 
-  corr   := libCV.MixedXCorr(worldSample, locSample);
-  Result := w_ArgMax(corr);
+  Result := MatchTemplate(worldSample, locSample).ArgMax();
   Result := finder.XCorrPeakNear(
     Point(Result.x*finder.scanRatio, Result.y*finder.scanRatio),
     worldMap,
@@ -190,13 +189,13 @@ end;
 function TRSWalker._GetPosCustom(): TPoint;
 var
   tmpMMap,Minimap: T2DIntArray;
-  match: T2DFloatArray;
+  match: T2DRealArray;
   best: TFeaturePoint;
 begin
   Minimap := RSWUtils.GetMinimap(True, False);
   tmpMMap := w_ImSample(Minimap, Finder.ScanRatio);
-  match   := LibCV.MixedXCorr(WorldSample, tmpMmap);
-  with w_ArgMax(match) do
+  match   := MatchTemplate(WorldSample, tmpMmap);
+  with match.ArgMax() do
   begin
     best.Value := match[Y,X];
     best.X := X * Finder.ScanRatio;

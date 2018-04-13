@@ -138,7 +138,6 @@ function TRSPosFinder.XCorrPeakNear(p:TPoint; Large, Sub:T2DIntArray; Area:Int32
 var
   W,H: Int32;
   mat: T2DIntArray;
-  corr: T2DFloatArray;
   B: TBox;
 begin
   H := High(Large);
@@ -150,16 +149,15 @@ begin
   B := [B.x1-Area, B.y1-Area, B.x2+Area, B.y2+Area];
   B := [max(0,B.x1),max(0,B.y1),min(W,B.x2),min(H,B.y2)];
   mat := w_GetArea(Large, b.x1,b.y1,b.x2,b.y2);
-
-  corr   := LibCV.MixedXCorr(mat, Sub);
-  Result := w_ArgMax(corr);
+            
+  Result := MatchTemplate(mat, Sub).ArgMax();
   Result := [Result.x-Area+p.x, Result.y-Area+p.y];
 end;
 
 function TRSPosFinder.GetLocalPos(): TPoint;
 var
   minimap, tmpLocal, tmpMMap: T2DIntArray;
-  match: T2DFloatArray;
+  match: T2DRealArray;
   best: TFeaturePoint;
   //bmp: TMufasaBitmap;
 begin
@@ -173,9 +171,9 @@ begin
   //bmp.ResizeEx(RM_Nearest, Length(Minimap[0]), Length(Minimap));
   //bmp.Debug();
   //bmp.Free();
-
-  match := LibCV.MixedXCorr(tmpLocal, tmpMmap);
-  with w_ArgMax(match) do
+  
+  match := MatchTemplate(tmpLocal, tmpMmap);
+  with match.ArgMax() do
   begin
     best.Value := match[Y,X];
     best.X := X * self.ScanRatio;

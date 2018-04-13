@@ -13,6 +13,7 @@ const
   LOAD_MAP = TRUE;
   REBUILD_TIMER = 30000;    {rebuild world map every}
   BACKUP_TIMER  = 10*60000; {save a .bac world map every}
+  OVERLAP_WEIGHT = 0.3334;
 
 var
   ResMap: TMufasaBitmap;
@@ -24,6 +25,7 @@ var
   tmp: TMufasaBitmap;
   x1,y1,W,H: Int32;
   xx,yy,R1,G1,B1,R2,G2,B2: Int32;
+  P:Int32 := Trunc(1/OVERLAP_WEIGHT);
 begin
   tmp.Init(client.GetMBitmaps);
 
@@ -45,7 +47,11 @@ begin
         else
         begin
           ColorToRGB(Self.GetPixel(xx,yy), R2,G2,B2);
-          tmp.SetPixel(x1+xx, y1+yy, RGBtoColor((R1*3+R2) div 4, (G1*3+G2) div 4, (B1*3+B2) div 4));
+          tmp.SetPixel(
+             x1+xx,
+             y1+yy,
+             RGBtoColor((R1*P+R2) div (P+1), (G1*P+G2) div (P+1), (B1*P+B2) div (P+1))
+          );
         end;
       end;
   end;
@@ -112,7 +118,7 @@ function AddPiece(Piece: TMufasaBitmap): Boolean;
       WriteLn('>>> Searching for fitting location [1]');
       if (Result := FindBitmapTolerance(TL.GetIndex(), x,y, 50)) then
         PT := [x,y];
-      Result := AssertValidMatch(Map, Sub, PT, 55, 0.999);
+      Result := AssertValidMatch(Map, Sub, PT, 55, 0.991);
     end;
 
     if (not Result) then
@@ -120,7 +126,7 @@ function AddPiece(Piece: TMufasaBitmap): Boolean;
       WriteLn('>>> Searching for fitting location [2]');
       if (Result := FindBitmapTolerance(TR.GetIndex(), x,y, 50)) then
         PT := [x-(W-131), y];
-      Result := AssertValidMatch(Map, Sub, PT, 55, 0.999)
+      Result := AssertValidMatch(Map, Sub, PT, 55, 0.991)
     end;
 
     if (not Result) then
@@ -128,7 +134,7 @@ function AddPiece(Piece: TMufasaBitmap): Boolean;
       WriteLn('>>> Searching for fitting location [3]');
       if (Result := FindBitmapTolerance(BL.GetIndex(), x,y, 50)) then
         PT := [x, y-(H-131)];
-      Result := AssertValidMatch(Map, Sub, PT, 55, 0.999)
+      Result := AssertValidMatch(Map, Sub, PT, 55, 0.991)
     end;
 
     if (not Result) then
@@ -136,7 +142,7 @@ function AddPiece(Piece: TMufasaBitmap): Boolean;
       WriteLn('>>> Searching for fitting location [4]');
       if (Result := FindBitmapTolerance(BR.GetIndex(), x,y, 50)) then
         PT := [x-(W-131), y-(H-131)];
-      Result := AssertValidMatch(Map, Sub, PT, 55, 0.999)
+      Result := AssertValidMatch(Map, Sub, PT, 55, 0.991)
     end;
 
     TL.Free();
