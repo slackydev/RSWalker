@@ -5,9 +5,19 @@
   License: GNU GPL (http://www.gnu.org/licenses/gpl.html)
 [==============================================================================}
 {$IFDEF HINTS}{$DEFINE !HAD_HINTS}{$H-}{$ENDIF}
-{$loadlib ../Includes/RSWalker/libWalker}
-{$IFNDECL MatchTemplate}{$loadlib ../Includes/RSWalker/matchTempl}{$ENDIF}
-{$include_once MemScan.pas}
+
+{$IFDEF WIN32}
+  {$loadlib ../Includes/RSWalker/libWalker.dll}
+{$ENDIF}
+
+{$IFNDECL MatchTemplate}
+  {$loadlib ../Includes/RSWalker/matchTempl}
+{$ENDIF}
+
+{$IFDECL TMEMSCAN}
+  {$include_once MemScan.pas}
+{$ENDIF}
+
 {$include_once Utilities.pas}
 {$include_once Base.pas}
 
@@ -39,7 +49,6 @@ type
   end;
 
 
-{$IFNDEF CodeInsight}
 procedure TRSWalker.SetDefaultValues();
 begin
   onWalkEvent  := nil;
@@ -49,23 +58,25 @@ begin
   MinRunEnergy:= 20;
   Graph       := RSW_Graph;
 
-  MemScanEnabled := True;
+  MemScanEnabled := True;//{$IFDEF HAS_MEMSCAN}True{$ELSE}False{$ENDIF};
   Enabled := True;
 end;
-
 
 function TRSWalker.TryGetClientID(): UInt32; static;
 var
   H:PtrUInt;
 begin
-  {$IFDEF SMART}
-    Result := SMART.PID;
+  {$IFDECL TMEMSCAN}
+    {$IFDEF SMART}
+      Result := SMART.PID;
+    {$ELSE}
+      H := Client.GetIOManager().GetKeyMouseTarget().GetHandle();
+      Result := GetWindowProcessID(H);
+    {$ENDIF}
   {$ELSE}
-    H := Client.GetIOManager().GetKeyMouseTarget().GetHandle();
-    Result := GetWindowProcessID(H);
+    Result := 0;
   {$ENDIF}
 end;
-{$ENDIF}
 
 
 procedure TRSWalker.Init(World: String; PID:Int32=0; AScanRatio:Int32=6);
@@ -129,10 +140,9 @@ end;
 }
 function TRSWalker.FindChunk(pt:TPoint; area:Int32=100): TPoint;
 var
-  loc,locSample:T2DIntArray;
-  corr:T2DFloatArray;
-  B:TBox;
-  shift:TPoint;
+  loc,locSample: T2DIntArray;
+  B: TBox;
+  shift: TPoint;
 begin
   B := [pt.x-area, pt.y-area, pt.x+area, pt.y+area];
   B := [max(52,B.x1),max(52,B.y1),min(459,B.x2),min(459,B.y2)];
@@ -220,7 +230,7 @@ begin
   if Length(self.worldMap) = 0 then
     RaiseException('TRSWalker.GetMyPos -> RSWalker is not set up for this task!');
   
-  if (finder.process > 0) and (self.memScanEnabled) then
+  if (Finder.Process > 0) and (self.MemScanEnabled) then
     Result := self._GetPos()
   else
     Result := self._GetPosCustom();

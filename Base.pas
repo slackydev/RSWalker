@@ -20,7 +20,7 @@ type
     
     //mem-stuff
     process:Int32;
-    scan: TMemScan;
+    scan: {$IFDECL TMemScan}TMemScan{$ELSE}Pointer{$ENDIF};
     addr: PtrUInt;
     bufferW, bufferH: Int32;
     localMap: T2DIntArray;
@@ -33,20 +33,22 @@ var
   errno:UInt32;
   procedure CheckError(errno:UInt32);
   begin
+    {$IFDECL TMEMSCAN}
     case errno of
       $0:  Exit;
       $5:  RaiseException(Format('TMemScan.Init -> PID `%d` does not exist (Access is denied)', [errno]));
       else RaiseException(Format('TMemScan.Init -> `%s`', [GetLastErrorAsString(errno)]));
     end;
+    {$ENDIF}
   end;
 begin
   with Self do
   begin
     scanRatio  := 8; //overwritten by TRSWalker
     process    := PID;
-    
+    {$IFDECL TMEMSCAN}
     if PID > 0 then CheckError(scan.Init(process));
-    
+    {$ENDIF}
     addr    := $0;
     bufferW := 512;
     bufferH := 512;
@@ -58,7 +60,7 @@ procedure TRSPosFinder.Free();
 begin
   with self do
   begin
-    scan.Free();
+    {$IFDECL TMEMSCAN}scan.Free();{$ENDIF}
     addr := 0;
     SetLength(localMap,0);
   end;
@@ -67,6 +69,7 @@ end;
 // ---------------------------------------------------------------------------------
 // Memory scanning related methods:
 
+{$IFDECL TMEMSCAN}
 function TRSPosFinder.ValidMapAddr(address:PtrUInt): Boolean;
 var data:Int32;
 begin
@@ -78,7 +81,6 @@ begin
   end;
 end;
 
-
 function TRSPosFinder.MustUpdateAddr(): Boolean;
 begin
   Result := not self.ValidMapAddr(self.addr);
@@ -87,8 +89,8 @@ end;
 //updates the address of the minimap-buffer
 procedure TRSPosFinder.UpdateAddr();
 var
-  matches: Array of PtrUInt;
-  TIA: Array of Int32;
+  matches: array of PtrUInt;
+  TIA: array of Int32;
   i,j: Int32;
 begin
   matches := scan.MagicFunctionToFindTheMapBuffer([512,512,512,512],36);
@@ -105,7 +107,6 @@ begin
   end;
   RaiseException(erException, 'TRSPosFinder.UpdateAddr: Unable to locate bitmap');
 end;
-
 
 procedure TRSPosFinder.UpdateMap(rescan:Boolean=False);
 var t,c:Int64;
@@ -128,6 +129,21 @@ begin
   
   self.LocalMap := GetMemBufferImage(self.scan, self.addr+W_MAP_OFFSET, self.bufferW, self.bufferH);
 end;
+
+{$ELSE}
+
+function TRSPosFinder.MustUpdateAddr(): Boolean;
+begin
+  RaiseException(erException, 'Memscan not avaialble on your platform');
+end;
+
+procedure TRSPosFinder.UpdateMap(rescan:Boolean=False);
+begin
+  RaiseException(erException, 'Memscan not avaialble on your platform');
+end;
+
+{$ENDIF}
+
 
 
 // ---------------------------------------------------------------------------------

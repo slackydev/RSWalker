@@ -9,6 +9,6 @@ begin
   RSW.Init('world.png');
   RSW.MemScanEnabled := True;
   AddOnTerminate(@RSW.Free);
-
+  DisableFFTW;
   while True do RSW.DebugPos();
 end.
