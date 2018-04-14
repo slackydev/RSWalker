@@ -20,9 +20,9 @@ type
     
     //mem-stuff
     process:Int32;
-    scan:TMemScan;
-    addr:PtrUInt;
-    bufferW, bufferH:Int32;
+    scan: TMemScan;
+    addr: PtrUInt;
+    bufferW, bufferH: Int32;
     localMap: T2DIntArray;
   end;
 
@@ -34,7 +34,7 @@ var
   procedure CheckError(errno:UInt32);
   begin
     case errno of
-      $0:  Exit();
+      $0:  Exit;
       $5:  RaiseException(Format('TMemScan.Init -> PID `%d` does not exist (Access is denied)', [errno]));
       else RaiseException(Format('TMemScan.Init -> `%s`', [GetLastErrorAsString(errno)]));
     end;
@@ -121,12 +121,12 @@ begin
         break;
       Wait(t div 2);
       
-      if GetTickCount() - c > 50000 then
+      if GetTickCount() - c > 60000 then
         RaiseException(erException, 'TRSPosFinder.UpdateMap: Unable to locate a valid address');
     until False;
   end;
   
-  self.localMap := GetMemBufferImage(self.scan, self.addr+W_MAP_OFFSET, self.bufferW, self.bufferH);
+  self.LocalMap := GetMemBufferImage(self.scan, self.addr+W_MAP_OFFSET, self.bufferW, self.bufferH);
 end;
 
 
@@ -144,11 +144,11 @@ begin
   W := High(Large[0]);
   if (H < Length(Sub)) or (W < Length(Sub[0])) then
     RaiseException(erException, 'TRSPosFinder.FindPeakAround: `large` bitmap is smaller than `sub`');
-
+  
   B := [p.x, p.y, p.x + Length(Sub[0]), p.y + Length(Sub)];
   B := [B.x1-Area, B.y1-Area, B.x2+Area, B.y2+Area];
   B := [max(0,B.x1),max(0,B.y1),min(W,B.x2),min(H,B.y2)];
-  mat := w_GetArea(Large, b.x1,b.y1,b.x2,b.y2);
+  mat := Large.Crop(B);
             
   Result := MatchTemplate(mat, Sub).ArgMax();
   Result := [Result.x-Area+p.x, Result.y-Area+p.y];
@@ -162,10 +162,10 @@ var
   //bmp: TMufasaBitmap;
 begin
   Self.UpdateMap(Self.MustUpdateAddr());
-  Minimap := RSWUtils.GetMinimap(False,False, self.scanRatio);
+  Minimap  := RSWUtils.GetMinimap(False, False, self.scanRatio);
+  tmpMMap  := Minimap.DownscaleImage(Self.ScanRatio);
+  tmpLocal := LocalMap.DownscaleImage(Self.ScanRatio);
 
-  tmpMMap  := w_ImSample(Minimap,  Self.ScanRatio);
-  tmpLocal := w_ImSample(LocalMap, Self.ScanRatio);
   //bmp.Init(client.GetMBitmaps);
   //bmp.DrawMatrix(tmpMMap);
   //bmp.ResizeEx(RM_Nearest, Length(Minimap[0]), Length(Minimap));
@@ -195,7 +195,7 @@ var
   W,H,_: Int32;
 begin
   BMP.Init(client.GetMBitmaps);
-  BMP.DrawMatrix(self.localMap);
+  BMP.DrawMatrix(self.LocalMap);
   GetBitmapSize(BMP.GetIndex, W,H);
   if not(PointInBox(p, [2,2,W-3,H-3])) then Exit();
 

@@ -99,7 +99,7 @@ begin
       BMP := LoadBitmap(FindMapPath(world));
       worldMap := BitmapToMatrix(BMP);
       FreeBitmap(BMP);
-      worldSample := w_imSample(worldMap, finder.scanRatio);
+      worldSample := worldMap.DownscaleImage(finder.scanRatio);
     end else
       self.enabled := False;
   end;
@@ -108,10 +108,10 @@ end;
 
 procedure TRSWalker.Free();
 begin
-  finder.Free();
-  setLength(worldMap, 0);
-  setLength(worldSample, 0);
-  setLength(localMap, 0);
+  Finder.Free();
+  SetLength(worldMap, 0);
+  SetLength(worldSample, 0);
+  SetLength(localMap, 0);
 end;
 
 {---| IF MEMSCAN |---]
@@ -120,7 +120,7 @@ end;
 function TRSWalker.ToggleMemScan(): Boolean;
 begin
   memScanEnabled := not memScanEnabled;
-  Result := memScanEnabled and (finder.process > 0); 
+  Result := memScanEnabled and (Finder.Process > 0);
 end;
 
 
@@ -136,14 +136,15 @@ var
 begin
   B := [pt.x-area, pt.y-area, pt.x+area, pt.y+area];
   B := [max(52,B.x1),max(52,B.y1),min(459,B.x2),min(459,B.y2)];
-  loc := w_GetArea(self.localMap, b.x1,b.y1,b.x2,b.y2);
-  locSample := w_ImSample(loc, Finder.scanRatio);
-  shift := Point(pt.x-B.x1, pt.y-B.y1);
 
-  Result := MatchTemplate(worldSample, locSample).ArgMax();
+  loc := self.LocalMap.Crop(b);
+  locSample := loc.DownscaleImage(Finder.ScanRatio);
+  shift := Point(pt.x-B.x1, pt.y-B.y1);
+  
+  Result := MatchTemplate(WorldSample, locSample).ArgMax();
   Result := finder.XCorrPeakNear(
-    Point(Result.x*finder.scanRatio, Result.y*finder.scanRatio),
-    worldMap,
+    Point(Result.x*Finder.ScanRatio, Result.y*Finder.ScanRatio),
+    WorldMap,
     loc,
     20
   );
@@ -159,12 +160,13 @@ end;
 procedure TRSWalker.UpdateGlobalStart(localPt:TPoint);
 var sim:Double;
 begin
-  if length(self.localMap) = length(finder.localMap) then
-    sim := w_imCompareAt(finder.localMap, self.localMap, Point(0,0), 1);
+  if Length(self.LocalMap) = Length(Finder.LocalMap) then
+    sim := Finder.LocalMap.CompareImageAt(self.LocalMap, [0,0], 1);
+
   if sim < 1 then
   begin
-    self.LocalMap := finder.LocalMap;
-    self.Global := self.FindChunk(localPt);
+    self.LocalMap := Finder.LocalMap;
+    self.Global   := self.FindChunk(localPt);
   end;
 end;
 
@@ -193,7 +195,7 @@ var
   best: TFeaturePoint;
 begin
   Minimap := RSWUtils.GetMinimap(True, False);
-  tmpMMap := w_ImSample(Minimap, Finder.ScanRatio);
+  tmpMMap := Minimap.DownscaleImage(Finder.ScanRatio);
   match   := MatchTemplate(WorldSample, tmpMmap);
   with match.ArgMax() do
   begin
@@ -451,14 +453,18 @@ var
   TPA: TPointArray;
   colors: TIntArray;
   glob: TPoint;
+  timeUsed: Double;
 begin
+  timeUsed := PerformanceTimer;
   glob := Self.GetMyPos();
+  timeUsed := PerformanceTimer - timeUsed;
+
   x1 := Max(0, glob.x-200);
   y1 := Max(0, glob.y-200);
   x2 := Min(x1+400, High(Self.WorldMap[0]));
   y2 := Min(y1+400, High(Self.WorldMap));
 
-  mat := w_GetArea(Self.WorldMap, x1,y1,x2,y2);
+  mat := Self.WorldMap.Crop(Box(x1,y1,x2,y2));
   mx := glob.x - x1;
   my := glob.y - y1;
 
@@ -487,6 +493,14 @@ begin
   BMP1.DrawMatrix(mat);
   BMP1.DrawTransparent(426,40, BMP);
   BMP1.Free();
+
+  BMP.DrawSystemText(
+    'Used '+ToStr(Round(timeUsed))+' ms',
+    'Courier New', 11,
+    Point(422,396),
+    True,
+    $FFFFFF
+  );
 
   DisplayDebugImgWindow(BMP.GetWidth(), BMP.GetHeight());
   DrawBitmapDebugImg(BMP.GetIndex());
