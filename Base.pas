@@ -20,9 +20,9 @@ type
     
     //mem-stuff
     process:Int32;
-    scan:TMemScan;
-    addr:PtrUInt;
-    bufferW, bufferH:Int32;
+    scan: {$IFDECL TMemScan}TMemScan{$ELSE}Pointer{$ENDIF};
+    addr: PtrUInt;
+    bufferW, bufferH: Int32;
     localMap: T2DIntArray;
   end;
 
@@ -33,20 +33,22 @@ var
   errno:UInt32;
   procedure CheckError(errno:UInt32);
   begin
+    {$IFDECL TMEMSCAN}
     case errno of
-      $0:  Exit();
+      $0:  Exit;
       $5:  RaiseException(Format('TMemScan.Init -> PID `%d` does not exist (Access is denied)', [errno]));
       else RaiseException(Format('TMemScan.Init -> `%s`', [GetLastErrorAsString(errno)]));
     end;
+    {$ENDIF}
   end;
 begin
   with Self do
   begin
     scanRatio  := 8; //overwritten by TRSWalker
     process    := PID;
-    
+    {$IFDECL TMEMSCAN}
     if PID > 0 then CheckError(scan.Init(process));
-    
+    {$ENDIF}
     addr    := $0;
     bufferW := 512;
     bufferH := 512;
@@ -58,7 +60,7 @@ procedure TRSPosFinder.Free();
 begin
   with self do
   begin
-    scan.Free();
+    {$IFDECL TMEMSCAN}scan.Free();{$ENDIF}
     addr := 0;
     SetLength(localMap,0);
   end;
@@ -67,6 +69,7 @@ end;
 // ---------------------------------------------------------------------------------
 // Memory scanning related methods:
 
+{$IFDECL TMEMSCAN}
 function TRSPosFinder.ValidMapAddr(address:PtrUInt): Boolean;
 var data:Int32;
 begin
@@ -78,7 +81,6 @@ begin
   end;
 end;
 
-
 function TRSPosFinder.MustUpdateAddr(): Boolean;
 begin
   Result := not self.ValidMapAddr(self.addr);
@@ -87,8 +89,8 @@ end;
 //updates the address of the minimap-buffer
 procedure TRSPosFinder.UpdateAddr();
 var
-  matches: Array of PtrUInt;
-  TIA: Array of Int32;
+  matches: array of PtrUInt;
+  TIA: array of Int32;
   i,j: Int32;
 begin
   matches := scan.MagicFunctionToFindTheMapBuffer([512,512,512,512],36);
@@ -106,7 +108,6 @@ begin
   RaiseException(erException, 'TRSPosFinder.UpdateAddr: Unable to locate bitmap');
 end;
 
-
 procedure TRSPosFinder.UpdateMap(rescan:Boolean=False);
 var t,c:Int64;
 begin
@@ -121,13 +122,28 @@ begin
         break;
       Wait(t div 2);
       
-      if GetTickCount() - c > 50000 then
+      if GetTickCount() - c > 60000 then
         RaiseException(erException, 'TRSPosFinder.UpdateMap: Unable to locate a valid address');
     until False;
   end;
   
-  self.localMap := GetMemBufferImage(self.scan, self.addr+W_MAP_OFFSET, self.bufferW, self.bufferH);
+  self.LocalMap := GetMemBufferImage(self.scan, self.addr+W_MAP_OFFSET, self.bufferW, self.bufferH);
 end;
+
+{$ELSE}
+
+function TRSPosFinder.MustUpdateAddr(): Boolean;
+begin
+  RaiseException(erException, 'Memscan not avaialble on your platform');
+end;
+
+procedure TRSPosFinder.UpdateMap(rescan:Boolean=False);
+begin
+  RaiseException(erException, 'Memscan not avaialble on your platform');
+end;
+
+{$ENDIF}
+
 
 
 // ---------------------------------------------------------------------------------
@@ -138,44 +154,42 @@ function TRSPosFinder.XCorrPeakNear(p:TPoint; Large, Sub:T2DIntArray; Area:Int32
 var
   W,H: Int32;
   mat: T2DIntArray;
-  corr: T2DFloatArray;
   B: TBox;
 begin
   H := High(Large);
   W := High(Large[0]);
   if (H < Length(Sub)) or (W < Length(Sub[0])) then
     RaiseException(erException, 'TRSPosFinder.FindPeakAround: `large` bitmap is smaller than `sub`');
-
+  
   B := [p.x, p.y, p.x + Length(Sub[0]), p.y + Length(Sub)];
   B := [B.x1-Area, B.y1-Area, B.x2+Area, B.y2+Area];
   B := [max(0,B.x1),max(0,B.y1),min(W,B.x2),min(H,B.y2)];
-  mat := w_GetArea(Large, b.x1,b.y1,b.x2,b.y2);
-
-  corr   := LibCV.MixedXCorr(mat, Sub);
-  Result := w_ArgMax(corr);
+  mat := Large.Crop(B);
+            
+  Result := MatchTemplate(mat, Sub).ArgMax();
   Result := [Result.x-Area+p.x, Result.y-Area+p.y];
 end;
 
 function TRSPosFinder.GetLocalPos(): TPoint;
 var
   minimap, tmpLocal, tmpMMap: T2DIntArray;
-  match: T2DFloatArray;
+  match: T2DRealArray;
   best: TFeaturePoint;
   //bmp: TMufasaBitmap;
 begin
   Self.UpdateMap(Self.MustUpdateAddr());
-  Minimap := RSWUtils.GetMinimap(False,False, self.scanRatio);
+  Minimap  := RSWUtils.GetMinimap(False, False, self.scanRatio);
+  tmpMMap  := Minimap.DownscaleImage(Self.ScanRatio);
+  tmpLocal := LocalMap.DownscaleImage(Self.ScanRatio);
 
-  tmpMMap  := w_ImSample(Minimap,  Self.ScanRatio);
-  tmpLocal := w_ImSample(LocalMap, Self.ScanRatio);
   //bmp.Init(client.GetMBitmaps);
   //bmp.DrawMatrix(tmpMMap);
   //bmp.ResizeEx(RM_Nearest, Length(Minimap[0]), Length(Minimap));
   //bmp.Debug();
   //bmp.Free();
-
-  match := LibCV.MixedXCorr(tmpLocal, tmpMmap);
-  with w_ArgMax(match) do
+  
+  match := MatchTemplate(tmpLocal, tmpMmap);
+  with match.ArgMax() do
   begin
     best.Value := match[Y,X];
     best.X := X * self.ScanRatio;
@@ -197,7 +211,7 @@ var
   W,H,_: Int32;
 begin
   BMP.Init(client.GetMBitmaps);
-  BMP.DrawMatrix(self.localMap);
+  BMP.DrawMatrix(self.LocalMap);
   GetBitmapSize(BMP.GetIndex, W,H);
   if not(PointInBox(p, [2,2,W-3,H-3])) then Exit();
 

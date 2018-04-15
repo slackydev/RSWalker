@@ -32,12 +32,9 @@ end;
 
 procedure LoadExports;
 begin
-  addType('TFloatArray', 'Array of Single;');
-  addType('T2DFloatArray','Array of TFloatArray;');
-
   addType('TPtrInfo','packed record addr: PtrUInt; raw: TByteArray; end;');
-  addType('TPtrInfoArray','Array of TPtrInfo;');
-  addType('TPtrIntArray','Array of PtrUInt;');
+  addType('TPtrInfoArray','array of TPtrInfo;');
+  addType('TPtrIntArray','array of PtrUInt;');
   addType('TMemScan','packed record Proc: PtrUInt; SysMemLo: PtrUInt; SysMemHi: PtrUInt; end;');
 
   addMethod('function GetWindowProcessID(hwnd:UInt32): UInt32;', @GetWindowProcessID);
@@ -59,16 +56,6 @@ begin
   addMethod('function TMemScan.FindString(data:AnsiString; alignment:Int8=1): TPtrIntArray;', @TMemScan_FindString);
   addMethod('function TMemScan.FindWideString(data:WideString; alignment:Int8=1): TPtrIntArray;', @TMemScan_FindWideString);
   addMethod('function TMemScan.FindByteArray(data:TByteArray; alignment:Int8=1): TPtrIntArray;', @TMemScan_FindByteArray);
-  
-  addMethod('function w_GetValues(const Mat:T2DIntArray; const Indices:TPointArray): TIntegerArray;', @GetValues);
-  addMethod('function w_GetValues(const Mat:T2DFloatArray; const Indices:TPointArray): TFloatArray; overload;', @GetValuesF);
-  addMethod('function w_GetArea(const Mat:T2DIntArray; x1,y1,x2,y2:Int32): T2DIntArray;', @GetArea);
-  addMethod('function w_ArgMax(const Mat:T2DFloatArray): TPoint;', @ArgMax);
-  addMethod('function w_ArgMulti(const Mat:T2DFloatArray; Count:Int32; HiLo:Boolean): TPointArray;', @ArgMulti);
-
-  addMethod('function w_imCompareAt(const large,small:T2DIntArray; pt:TPoint; tol:Int32): Single;', @imCompareAt);
-  addMethod('function w_imSample(const imgArr:T2DIntArray; Scale:Int32): T2DIntArray;', @imSample);
-  addMethod('function w_imRotate(const imgArr:T2DIntArray; Angle:Single; Expand:Boolean; Bilinear:Boolean=True): T2DIntArray;', @imRotate);
 
   MethodsLoaded := True;
   TypesLoaded := True;
@@ -86,3 +73,74 @@ begin
   SetLength(TypeDefs, 0);
   TypesLoaded := False;
 end;
+
+
+{=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=]
+ Export our functions, name, information etc...
+ All that is needed for scar to see this as a DLL.
+[=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=}
+function GetPluginABIVersion: Integer; cdecl; export;
+begin
+  Result := 2;
+end;
+
+procedure SetPluginMemManager(MemMgr : TMemoryManager); cdecl; export;
+begin
+  if memisset then
+    exit;
+  GetMemoryManager(OldMemoryManager);
+  SetMemoryManager(MemMgr);
+  memisset := True;
+end;
+
+
+procedure OnDetach; cdecl; export;
+begin
+  SetMemoryManager(OldMemoryManager);
+end;
+
+
+function GetFunctionCount: Integer; cdecl; export;
+begin
+  if not MethodsLoaded then LoadExports;
+  Result := Length(Methods);
+end;
+
+function GetFunctionInfo(x: Integer; var ProcAddr: Pointer; var ProcDef: PChar): Integer; cdecl; export;
+begin
+  Result := x;
+  if (x > -1) and InRange(x, 0, High(Methods)) then
+  begin
+    ProcAddr := Methods[x].procAddr;
+    StrPCopy(ProcDef, Methods[x].ProcDef);
+    if (x = High(Methods)) then FreeMethods;
+  end;
+end;
+
+
+
+function GetTypeCount: Integer; cdecl; export;
+begin
+  if not TypesLoaded then LoadExports;
+  Result := Length(TypeDefs);
+end;
+
+function GetTypeInfo(x: Integer; var TypeName, TypeDef: PChar): integer; cdecl; export;
+begin
+  Result := x;
+  if (x > -1) and InRange(x, 0, High(TypeDefs)) then
+  begin
+    StrPCopy(TypeName, TypeDefs[x].TypeName);
+    StrPCopy(TypeDef,  TypeDefs[x].TypeDef);
+    if (x = High(TypeDefs)) then FreeTypes;
+  end;
+end;
+
+
+exports GetPluginABIVersion;
+exports SetPluginMemManager;
+exports GetTypeCount;
+exports GetTypeInfo;
+exports GetFunctionCount;
+exports GetFunctionInfo;
+exports OnDetach;

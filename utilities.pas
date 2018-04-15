@@ -51,10 +51,7 @@ function TRSWUtils.LinesIntersect(p,q:array[0..1] of TPoint; out i:TPoint): Bool
 var
   dx,dy,d: TPoint;
   dt,s,t: Double;
-  function Det(a,b: TPoint): Int64;
-  begin
-    Result := a.x*b.y - a.y*b.x;
-  end;
+  function Det(a,b: TPoint): Int64; begin Result := a.x*b.y - a.y*b.x; end;
 begin
   dx := [p[0].x - p[1].x, q[0].x - q[1].x];
   dy := [p[0].y - p[1].y, q[0].y - q[1].y];
@@ -130,7 +127,7 @@ function TRSWUtils.GetMinimap(Smooth, Sample: Boolean; ratio:Int32=1): T2DIntArr
 var
   bmp: PtrUInt;
   B: TBox;
-  th: Double;
+  theta: Double;
 
   procedure ClearCorners();
   var
@@ -147,19 +144,19 @@ var
       FastSetPixel(bmp, TPA[i].x,TPA[i].y, FastGetPixel(bmp,TPA[i].x,TPA[i].y-1));
   end;
 begin
-  th  := Minimap.GetCompassAngle(False);
-  BMP := BitmapFromClient(MM_AREA.x1, MM_AREA.y1, MM_AREA.x2, MM_AREA.y2);
+  theta := Minimap.GetCompassAngle(False);
+  BMP   := BitmapFromClient(MM_AREA.x1, MM_AREA.y1, MM_AREA.x2, MM_AREA.y2);
   ClearCorners();
   Result := BitmapToMatrix(BMP);
   FreeBitmap(BMP);
-  Result := w_ImRotate(Result, th, False, Smooth);
-  B := RSWUtils.MinBoxInRotated(MM_CROP, th);
+  Result := Result.RotateImage(theta, False, Smooth);
+  B := RSWUtils.MinBoxInRotated(MM_CROP, theta);
   while B.Width  > 112 do begin B.x2 -= 1; B.x1 += 1; end;
   while B.Height > 100 do begin B.y2 -= 1; B.y1 += 1; end;
-  Result := w_GetArea(Result, B.x1,B.y1,B.x2,B.y2);
-
+  Result := Result.Crop(B);
+  
   if Sample then
-    Result := w_ImSample(Result, ratio);
+    Result := Result.DownscaleImage(ratio);
 end;
 
 
