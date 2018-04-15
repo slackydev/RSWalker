@@ -215,7 +215,7 @@ begin
     bmp.DrawMatrix(finder.localMap);
     bmp.Crop(65,65, 511-65,511-65);
 
-    if (prev = nil) or (w_imCompareAt(bmp.ToMatrix, prev.ToMatrix, Point(0,0), 1) < 1) then
+    if (prev = nil) or (bmp.ToMatrix().CompareImageAt(prev.ToMatrix(), Point(0,0), 1) < 1) then
     begin
       WriteLn('Rebuilding map... Please wait, this might take some time');
       t := PerformanceTimer();
@@ -223,7 +223,7 @@ begin
       begin
         if (prev <> nil) then prev.Free();
         prev := bmp;
-        WriteLn('Map rebuilt in ', PerformanceTimer-t,'ms');
+        WriteLn('Map rebuilt in ', Round(PerformanceTimer-t,3), 'ms');
       end else
         BMP.Free();
     end else
