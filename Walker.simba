@@ -21,6 +21,7 @@
 {$include_once Utilities.pas}
 {$include_once Base.pas}
 
+
 type
   PRSWalker = ^TRSWalker;
 
@@ -57,7 +58,7 @@ begin
   SkipClose   := 30;
   MinRunEnergy:= 20;
   Graph       := RSW_Graph;
-
+  
   MemScanEnabled := True;//{$IFDEF HAS_MEMSCAN}True{$ELSE}False{$ENDIF};
   Enabled := True;
 end;
@@ -100,8 +101,10 @@ begin
   with self do
   begin
     if (PID = 0) then PID := self.TryGetClientID();
-    finder.Init(PID);
-    finder.ScanRatio := AScanRatio;
+    Finder.Init(PID);
+    Finder.ScanRatio := AScanRatio;
+    Finder.TMFormula := TM_CCOEFF_NORMED;
+    {$IFDECL ClearFFTCache}ClearFFTCache{$ENDIF};
 
     self.SetDefaultValues();
     
@@ -110,7 +113,7 @@ begin
       BMP := LoadBitmap(FindMapPath(world));
       worldMap := BitmapToMatrix(BMP);
       FreeBitmap(BMP);
-      worldSample := worldMap.DownscaleImage(finder.scanRatio);
+      worldSample := WorldMap.DownscaleImage(Finder.ScanRatio);
     end else
       self.enabled := False;
   end;
@@ -124,6 +127,12 @@ begin
   SetLength(worldSample, 0);
   SetLength(localMap, 0);
 end;
+
+function TRSWalker.SetFormula(Formula: ETMFormula): TPoint;
+begin
+  Self.Finder.TMFormula := Formula;
+end;
+
 
 {---| IF MEMSCAN |---]
   Changes the state of MemScan (use, or not use)
@@ -151,7 +160,7 @@ begin
   locSample := loc.DownscaleImage(Finder.ScanRatio);
   shift := Point(pt.x-B.x1, pt.y-B.y1);
   
-  Result := MatchTemplate(WorldSample, locSample).ArgMax();
+  Result := MatchTemplate(WorldSample, locSample, Finder.TMFormula).ArgMax();
   Result := finder.XCorrPeakNear(
     Point(Result.x*Finder.ScanRatio, Result.y*Finder.ScanRatio),
     WorldMap,
@@ -206,7 +215,7 @@ var
 begin
   Minimap := RSWUtils.GetMinimap(True, False);
   tmpMMap := Minimap.DownscaleImage(Finder.ScanRatio);
-  match   := MatchTemplate(WorldSample, tmpMmap);
+  match   := MatchTemplate(WorldSample, tmpMmap, Finder.TMFormula);
   with match.ArgMax() do
   begin
     best.Value := match[Y,X];
@@ -252,6 +261,9 @@ begin
   Result := Minimap.VecToMSRect(Vec3(Loc.x - offx, Loc.y - offy, Height), angle);
 end;
 
+(*
+  Same as the above, only you dont have to pass "MyPos" to it.
+*)
 function TRSWalker.GetTileMS(Loc: TPoint; Height:Double=0; Offx,Offy:Double=0): TRectangle;
 begin
   Result := GetTileMSEx(Self.GetMyPos(), Loc, Height, Offx, Offy);
@@ -350,7 +362,7 @@ end;
 
 
 (*
- Walks a path..
+ Walks a path.. returns true if we successfully walked the path, otherwise false.
  
  One hook is used here:
  - onWalkEvent(self, myPos);
@@ -455,6 +467,23 @@ begin
   self.minRunEnergy := tmp;
 end;
 
+(*
+  Walks the path, if it fails it retries `Retries` times. Returns true if we
+  successfully walked the path, otherwise false
+*)
+function TRSWalker.WalkPath2(Path: TPointArray; Retries: Int32=3): Boolean;
+begin
+  for 1 to Retries do
+    if Self.WalkPath(Path) then
+      Exit(True)
+    else
+      Wait(600,900);
+end;
+
+
+(*
+  Uses the currenly loaded graph (by default a graph that matches world.png) to walk to desitnation
+*)
 function TRSWalker.WebWalk(Destination: TPoint; ClickRnd:Int32=4; PathRnd:Double=0; FinalCorrection:Boolean=False): Boolean;
 var
   path: TPointArray;
@@ -477,13 +506,16 @@ begin
   Result := Self.WebWalk(Self.Graph.Nodes[dstNode], ClickRnd, PathRnd, FinalCorrection);
 end;
 
+
+(*
+ Debug your current location, how accurately it's found, and the time it used to find it
+*)
 procedure TRSWalker.DebugPos();
 var
-  mx,my,x1,y1,x2,y2,_: Int32;
+  mx,my,x1,y1,x2,y2: Int32;
   mat: T2DIntArray;
   BMP, BMP1: TMufasaBitmap;
   TPA: TPointArray;
-  colors: TIntArray;
   glob: TPoint;
   timeUsed: Double;
 begin
@@ -512,13 +544,20 @@ begin
   BMP1.DrawTransparent(10,10, BMP);
   BMP1.Free();
 
-  BMP.DrawSystemText(
-    '('+ToStr(glob.x)+', '+ToStr(glob.y)+')',
-    'Courier New', 13,
-    Point(422,16),
-    True,
-    $FFFFFF
-  );
+  {$IFDEF WINDOWS}
+    BMP.DrawSystemText(
+      '('+ToStr(glob.x)+', '+ToStr(glob.y)+')',
+      'Courier New', 13,
+      Point(422,16),
+      True, $FFFFFF);
+  {$ELSE}
+    BMP.DrawClippedText(
+      '('+ToStr(glob.x)+', '+ToStr(glob.y)+')',
+      'SmallChars07',
+      Point(422,16),
+      True, $FFFFFF);
+  {$ENDIF}
+  
 
   mat := RSWUtils.GetMinimap(True,False);
   BMP1.Init(client.GetMBitmaps);
@@ -526,13 +565,31 @@ begin
   BMP1.DrawTransparent(426,40, BMP);
   BMP1.Free();
 
-  BMP.DrawSystemText(
-    'Used '+ToStr(Round(timeUsed))+' ms',
-    'Courier New', 11,
-    Point(422,396),
-    True,
-    $FFFFFF
-  );
+  {$IFDEF WINDOWS}
+    BMP.DrawSystemText(
+      'Acc '+ToStr(Round(Finder.Similarity,3)),
+      'Courier New', 11,
+      Point(422,370),
+      True, $FFFFFF);
+
+    BMP.DrawSystemText(
+      'Used '+ToStr(Round(timeUsed))+' ms',
+      'Courier New', 11,
+      Point(422,396),
+      True, $FFFFFF);
+  {$ELSE}
+    BMP.DrawClippedText(
+      'Acc '+ToStr(Round(Finder.Similarity,3)),
+      'SmallChars07',
+      Point(422,370),
+      True, $FFFFFF);
+    
+    BMP.DrawClippedText(
+      'Used '+ToStr(Round(Finder.Similarity,3))+' ms',
+      'SmallChars07',
+      Point(422,396),
+      True, $FFFFFF);
+  {$ENDIF}
 
   DisplayDebugImgWindow(BMP.GetWidth(), BMP.GetHeight());
   DrawBitmapDebugImg(BMP.GetIndex());

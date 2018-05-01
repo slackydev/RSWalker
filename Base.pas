@@ -16,6 +16,7 @@ type
   
   TRSPosFinder = record
     ScanRatio: Byte;
+    TMFormula: ETMFormula;
     Similarity: Single;   //from last correlation
     
     //mem-stuff
@@ -83,7 +84,7 @@ end;
 
 function TRSPosFinder.MustUpdateAddr(): Boolean;
 begin
-  Result := not self.ValidMapAddr(self.addr);
+  Result := (self.addr = 0) or (not self.ValidMapAddr(self.addr));
 end;
 
 //updates the address of the minimap-buffer
@@ -130,6 +131,13 @@ begin
   self.LocalMap := GetMemBufferImage(self.scan, self.addr+W_MAP_OFFSET, self.bufferW, self.bufferH);
 end;
 
+function TRSPosFinder.GetLocalImage(): TMufasaBitmap;
+begin
+  if Self.MustUpdateAddr then Self.UpdateMap(True);
+  Result.Init(client.GetMBitmaps);
+  Result.DrawMatrix(self.LocalMap);
+end;
+
 {$ELSE}
 
 function TRSPosFinder.MustUpdateAddr(): Boolean;
@@ -166,7 +174,7 @@ begin
   B := [max(0,B.x1),max(0,B.y1),min(W,B.x2),min(H,B.y2)];
   mat := Large.Crop(B);
             
-  Result := MatchTemplate(mat, Sub).ArgMax();
+  Result := MatchTemplate(mat, Sub, Self.TMFormula).ArgMax();
   Result := [Result.x-Area+p.x, Result.y-Area+p.y];
 end;
 
@@ -178,7 +186,7 @@ var
   //bmp: TMufasaBitmap;
 begin
   Self.UpdateMap(Self.MustUpdateAddr());
-  Minimap  := RSWUtils.GetMinimap(False, False, self.scanRatio);
+  Minimap  := RSWUtils.GetMinimap(False, False, self.ScanRatio);
   tmpMMap  := Minimap.DownscaleImage(Self.ScanRatio);
   tmpLocal := LocalMap.DownscaleImage(Self.ScanRatio);
 
@@ -188,7 +196,7 @@ begin
   //bmp.Debug();
   //bmp.Free();
   
-  match := MatchTemplate(tmpLocal, tmpMmap);
+  match := MatchTemplate(tmpLocal, tmpMmap, Self.TMFormula);
   with match.ArgMax() do
   begin
     best.Value := match[Y,X];

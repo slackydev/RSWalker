@@ -160,6 +160,7 @@ begin
   begin
     ResMap.Init(client.GetMBitmaps);
     Piece.DrawTo(0,0,ResMap);
+    ResMap.SaveToFile(PATH);
     Exit(True);
   end;
 
@@ -169,6 +170,7 @@ begin
     Result := True;
     if (GetTickCount()-LastSaveT > REBUILD_TIMER) then
     begin
+      WriteLn('saved to ', PATH);
       ResMap.SaveToFile(PATH);
       LastSaveT := GetTickCount();
     end;
