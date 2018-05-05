@@ -1,0 +1,39 @@
+program new;
+
+const
+  MAP_PATH = 'Includes\RSWalker\maps\world.png';
+  OUTPUT   = 'Includes\RSWalker\maps\slices\world[%d_%d].png';
+  WIDTH  = 768;
+  HEIGHT = 768;
+
+procedure CreateSlices();
+var
+  x,y,yi,xi: Int32;
+  map, slice: TMufasaBitmap;
+  w,h: Int32;
+begin
+  map.Init(client.GetMBitmaps);
+  map.LoadFromFile(MAP_PATH);
+  GetBitmapSize(map.GetIndex, W,H);
+
+  while y < H do
+  begin
+    x  := 0;
+    xi := 0;
+    while x < W do
+    begin
+      slice := map.Copy(x,y,Min(W-1,x+WIDTH-1), Min(H-1,y+HEIGHT-1));
+      slice.SaveToFile(Format(OUTPUT, [yi,xi]));
+
+      slice.Free();
+      x  += WIDTH;
+      xi += 1;
+    end;
+    y  += HEIGHT;
+    yi += 1;
+  end;
+end;
+
+begin
+  CreateSlices;
+end.

@@ -12,8 +12,14 @@ var
   MM_CROP: TBox := [0,0,MM_AREA.X2-MM_AREA.X1,MM_AREA.Y2-MM_AREA.Y1];
   MM_RAD: Int32 := 64;
   
+  SLICE_WIDTH  = 768;
+  SLICE_HEIGHT = 768;
+  SLICE_FMT   = '%s%s[%d_%d].png';
+  
   RSWUtils: TRSWUtils;
 
+  
+  
 
 function TRSWUtils.InPoly(p:TPoint; const Poly:TPointArray): Boolean; static;
 var j,i,H: Int32;
@@ -159,6 +165,30 @@ begin
     Result := Result.DownscaleImage(ratio);
 end;
 
+
+function TRSWUtils.AssembleSlices(Folder, Name: String; Slices: TPointArray; out Base: TPoint): TMufasaBitmap; static;
+var 
+  p: TPoint;
+  B: TBox;
+  slice: TMufasaBitmap;
+begin
+  B := GetTPABounds(Slices);
+  Base := Point(B.y1 * SLICE_HEIGHT, B.x1 * SLICE_WIDTH);
+  
+  Result.Init(client.GetMBitmaps);
+  Result.SetSize(B.Height * SLICE_HEIGHT, B.Width * SLICE_WIDTH);
+  for p in slices do
+  begin
+    slice.Init(client.GetMBitmaps);
+    slice.LoadFromFile(Format(SLICE_FMT, [Folder, Name, p.x,p.y]));
+    slice.DrawTransparent(
+      p.y*SLICE_HEIGHT - B.y1*SLICE_HEIGHT,
+      p.x*SLICE_WIDTH  - B.x1*SLICE_WIDTH,
+      Result
+    );
+    slice.Free();
+  end;
+end;
 
 
 // -----------------------------------------------------------------------------

@@ -42,6 +42,7 @@ type
 
     FPath: TPointArray;
     FPathIdx: Int32;
+    FBaseOffset: TPoint;
 
     onWalkEvent: TOnWalkEvent;
     onMoveEvent: TOnMoveEvent;
@@ -79,24 +80,27 @@ begin
   {$ENDIF}
 end;
 
+function TRSWalker.FindMapPath(path:String): String;
+var
+  testPath:String;
+  SEARCH_PATHS: TStringArray := [
+     path,
+     IncludePath+path,
+     IncludePath+'maps/'+path,
+     IncludePath+'RSWalker/maps/'+path,
+     IncludePath+'RSWalker/maps/slices/'+path
+  ];
+begin
+  for testPath in SEARCH_PATHS do
+    if FileExists(testPath) then
+      Exit(testPath);
+
+  RaiseException(erException, 'TRSWalker.Init -> Map `'+result+'` not found');
+end;
 
 procedure TRSWalker.Init(World: String; PID:Int32=0; AScanRatio:Int32=6);
 var
   BMP:Integer;
-
-  function FindMapPath(path:String): String;
-  var
-    testPath:String;
-  begin
-    Result := path;
-    if not FileExists(result) then
-    begin
-      testPath := IncludePath+'RSWalker\maps\'+result
-      if (not FileExists(testPath)) then
-        RaiseException(erException, 'TRSWalker.Init -> Map `'+result+'` not found');
-      Result := testPath;
-    end;
-  end;
 begin
   with self do
   begin
@@ -111,21 +115,59 @@ begin
     if world <> '' then
     begin
       BMP := LoadBitmap(FindMapPath(world));
-      worldMap := BitmapToMatrix(BMP);
+      WorldMap := BitmapToMatrix(BMP);
       FreeBitmap(BMP);
-      worldSample := WorldMap.DownscaleImage(Finder.ScanRatio);
+      WorldSample := WorldMap.DownscaleImage(Finder.ScanRatio);
     end else
-      self.enabled := False;
+      self.Enabled := False;
   end;
 end;
 
+procedure TRSWalker.InitEx(Folder, Name: String; Slices: TPointArray; PID:Int32=0; AScanRatio:Int32=6);
+var
+  BMP: TMufasaBitmap;
+
+  procedure SetupSlicePath();
+  var Folders: TStringArray;
+  begin
+    if Folder = '' then
+    begin
+      Folder := FindMapPath(Format(SLICE_FMT, [Folder, Name, 0,0]));
+      if Folder <> '' then
+      begin
+        Folder := Replace(Folder,'\','/', [rfReplaceAll]);
+        Folders := Explode('/', Folder);
+        SetLength(Folders, High(Folders));
+        Folder := Implode('/', Folders)+'/';
+      end;
+    end;
+  end;
+begin
+  with self do
+  begin
+    if (PID = 0) then PID := self.TryGetClientID();
+    Finder.Init(PID);
+    Finder.ScanRatio := AScanRatio;
+    Finder.TMFormula := TM_CCOEFF_NORMED;
+    {$IFDECL ClearFFTCache}ClearFFTCache{$ENDIF};
+
+    Self.SetDefaultValues();
+
+    SetupSlicePath();
+    BMP := RSWUtils.AssembleSlices(Folder, Name, Slices, Self.FBaseOffset);
+    WorldMap := BMP.ToMatrix();
+    BMP.Free();
+    WorldSample := WorldMap.DownscaleImage(Finder.ScanRatio);
+  end;
+end;
 
 procedure TRSWalker.Free();
 begin
   Finder.Free();
-  SetLength(worldMap, 0);
-  SetLength(worldSample, 0);
-  SetLength(localMap, 0);
+  FBaseOffset := [0,0];
+  SetLength(WorldMap, 0);
+  SetLength(WorldSample, 0);
+  SetLength(LocalMap, 0);
 end;
 
 function TRSWalker.SetFormula(Formula: ETMFormula): TPoint;
@@ -243,7 +285,8 @@ begin
     Result := self._GetPos()
   else
     Result := self._GetPosCustom();
-  
+
+  Result += Self.FBaseOffset;
   if (self.Finder.Similarity < minSimiliarty) then
     Exit(Point(-1,-1));
 end;
@@ -521,6 +564,7 @@ var
 begin
   timeUsed := PerformanceTimer;
   glob := Self.GetMyPos();
+  glob -= Self.FBaseOffset;
   timeUsed := PerformanceTimer - timeUsed;
 
   x1 := Max(0, glob.x-200);
@@ -544,6 +588,8 @@ begin
   BMP1.DrawTransparent(10,10, BMP);
   BMP1.Free();
 
+
+  glob += Self.FBaseOffset;
   {$IFDEF WINDOWS}
     BMP.DrawSystemText(
       '('+ToStr(glob.x)+', '+ToStr(glob.y)+')',
