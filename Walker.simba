@@ -49,6 +49,15 @@ type
     
     Enabled:Boolean;
   end;
+  
+var
+  RSW_SEARCH_PATHS: TStringArray := [
+     '',
+     IncludePath,
+     IncludePath+'maps/',
+     IncludePath+'RSWalker/maps/',
+     IncludePath+'RSWalker/maps/slices/'
+  ];
 
 
 procedure TRSWalker.SetDefaultValues();
@@ -83,16 +92,9 @@ end;
 function TRSWalker.FindMapPath(path:String): String;
 var
   testPath:String;
-  SEARCH_PATHS: TStringArray := [
-     path,
-     IncludePath+path,
-     IncludePath+'maps/'+path,
-     IncludePath+'RSWalker/maps/'+path,
-     IncludePath+'RSWalker/maps/slices/'+path
-  ];
 begin
-  for testPath in SEARCH_PATHS do
-    if FileExists(testPath) then
+  for testPath in RSW_SEARCH_PATHS do
+    if FileExists(testPath+path) then
       Exit(testPath);
 
   RaiseException(erException, 'TRSWalker.Init -> Map `'+result+'` not found');
@@ -114,7 +116,7 @@ begin
     
     if world <> '' then
     begin
-      BMP := LoadBitmap(FindMapPath(world));
+      BMP := LoadBitmap(FindMapPath(world)+world);
       WorldMap := BitmapToMatrix(BMP);
       FreeBitmap(BMP);
       WorldSample := WorldMap.DownscaleImage(Finder.ScanRatio);
@@ -123,25 +125,10 @@ begin
   end;
 end;
 
-procedure TRSWalker.InitEx(Folder, Name: String; Slices: TPointArray; PID:Int32=0; AScanRatio:Int32=6);
+procedure TRSWalker.InitEx(Name: String; Slices: TPointArray; PID:Int32=0; AScanRatio:Int32=6);
 var
   BMP: TMufasaBitmap;
-
-  procedure SetupSlicePath();
-  var Folders: TStringArray;
-  begin
-    if Folder = '' then
-    begin
-      Folder := FindMapPath(Format(SLICE_FMT, [Folder, Name, 0,0]));
-      if Folder <> '' then
-      begin
-        Folder := Replace(Folder,'\','/', [rfReplaceAll]);
-        Folders := Explode('/', Folder);
-        SetLength(Folders, High(Folders));
-        Folder := Implode('/', Folders)+'/';
-      end;
-    end;
-  end;
+  Folder: String;
 begin
   with self do
   begin
@@ -153,11 +140,13 @@ begin
 
     Self.SetDefaultValues();
 
-    SetupSlicePath();
-    BMP := RSWUtils.AssembleSlices(Folder, Name, Slices, Self.FBaseOffset);
+    Folder := FindMapPath(Format(SLICE_FMT, ['', Name, 0,0]));
+    BMP    := RSWUtils.AssembleSlices(Folder, Name, Slices, Self.FBaseOffset);
     WorldMap := BMP.ToMatrix();
     BMP.Free();
     WorldSample := WorldMap.DownscaleImage(Finder.ScanRatio);
+
+    Self.Graph.BlockOutside(Slices);
   end;
 end;
 
@@ -254,9 +243,14 @@ var
   tmpMMap,Minimap: T2DIntArray;
   match: T2DRealArray;
   best: TFeaturePoint;
+  //c: Int32;
 begin
   Minimap := RSWUtils.GetMinimap(True, False);
+  //c := SmartColorChan(Minimap);
+  //Minimap := SmartColor(Minimap, c);
+
   tmpMMap := Minimap.DownscaleImage(Finder.ScanRatio);
+  //match   := MatchTemplate(SmartColor(WorldSample, c), tmpMmap, Finder.TMFormula);
   match   := MatchTemplate(WorldSample, tmpMmap, Finder.TMFormula);
   with match.ArgMax() do
   begin
@@ -278,7 +272,7 @@ end;
 *)
 function TRSWalker.GetMyPos(minSimiliarty: Double = -$FFFFFFF): TPoint;
 begin
-  if Length(self.worldMap) = 0 then
+  if Length(self.WorldMap) = 0 then
     RaiseException('TRSWalker.GetMyPos -> RSWalker is not set up for this task!');
   
   if (Finder.Process > 0) and (self.MemScanEnabled) then

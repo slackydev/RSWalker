@@ -5,6 +5,7 @@ type
     Nodes: TPointArray;
     Paths: T2DIntArray;
     Names: TStringArray;
+    Blocking: TIntArray;
   end;
   
 var
@@ -171,6 +172,7 @@ var
   p: TPoint;
   B: TBox;
   slice: TMufasaBitmap;
+  xmax,ymax: Int32;
 begin
   B := GetTPABounds(Slices);
   Base := Point(B.y1 * SLICE_HEIGHT, B.x1 * SLICE_WIDTH);
@@ -178,21 +180,84 @@ begin
   Result.Init(client.GetMBitmaps);
   Result.SetSize(B.Height * SLICE_HEIGHT, B.Width * SLICE_WIDTH);
   for p in slices do
-  begin
-    slice.Init(client.GetMBitmaps);
-    slice.LoadFromFile(Format(SLICE_FMT, [Folder, Name, p.x,p.y]));
-    slice.DrawTransparent(
-      p.y*SLICE_HEIGHT - B.y1*SLICE_HEIGHT,
-      p.x*SLICE_WIDTH  - B.x1*SLICE_WIDTH,
-      Result
-    );
-    slice.Free();
-  end;
+    if FileExists(Format(SLICE_FMT, [Folder, Name, p.x,p.y])) then
+    begin
+      slice.Init(client.GetMBitmaps);
+      slice.LoadFromFile(Format(SLICE_FMT, [Folder, Name, p.x,p.y]));
+      slice.DrawTransparent(
+        p.y*SLICE_HEIGHT - B.y1*SLICE_HEIGHT,
+        p.x*SLICE_WIDTH  - B.x1*SLICE_WIDTH,
+        Result
+      );
+      slice.Free();
+      xmax := Max(xmax,p.X);
+      ymax := Max(xmax,p.Y);
+    end else
+      WriteLn('TRSWUtils.AssembleSlices: Warning slice: ',Format('%d,%d', [p.x,p.y]),' does not exist');
+  Result.SetSize((ymax-B.y1+1) * SLICE_HEIGHT, (xmax-B.x1+1) * SLICE_WIDTH);
+end;
+
+function TRSWUtils.PathToSlices(Path: TPointArray): TPointArray; static;
+var 
+  B: TBox;
+  x,y,x1,y1,x2,y2: Int32;
+begin
+  B := GetTPABounds(Path);
+  
+  x1 := B.x1 div SLICE_WIDTH;
+  y1 := B.y1 div SLICE_HEIGHT;
+  if (x1 > 0) and (B.x1 - x1*SLICE_WIDTH  < 100) then Dec(x1);
+  if (y1 > 0) and (B.y1 - y1*SLICE_HEIGHT < 100) then Dec(y1);
+  
+  x2 := B.x2 div SLICE_WIDTH;
+  y2 := B.y2 div SLICE_HEIGHT;
+  if ((x2*SLICE_WIDTH+SLICE_WIDTH)   - B.x2 < 100) then Inc(x2);
+  if ((y2*SLICE_HEIGHT+SLICE_HEIGHT) - B.y2 < 100) then Inc(y2);
+  
+  for y:=y1 to y2 do
+    for x:=x1 to x2 do Result += Point(y,x);
 end;
 
 
 // -----------------------------------------------------------------------------
 // TWebGraph - A web for any runescape map so you can walk everywhere on it.
+
+function TWebGraph.Copy(): TWebGraph;
+begin
+  Result.Blocking := System.Copy(Self.Blocking);
+  Result.Names    := System.Copy(Self.Names);
+  Result.Nodes    := System.Copy(Self.Nodes);
+  Result.Paths    := System.Copy(Self.Paths);
+end;
+
+procedure TWebGraph.BlockOutside(Slices: TPointArray);
+var
+  i,x,y,c: Int32;
+  TBA: TBoxArray;
+  function PointInTBA(p: TPoint; TBA: TBoxArray): Boolean;
+  var j: Int32;
+  begin
+    for j:=0 to High(TBA) do
+      if PointInBox(p, TBA[j]) then Exit(True);
+  end;
+begin
+  for i:=0 to High(slices) do
+  begin
+    x := slices[i].y * SLICE_HEIGHT;
+    y := slices[i].x * SLICE_WIDTH;
+    TBA += Box(x,y, x+SLICE_WIDTH-1, y+SLICE_HEIGHT-1);
+  end;
+
+  SetLength(Blocking, 256);
+  for i:=0 to High(Self.Nodes) do
+    if not PointInTBA(Self.Nodes[i], TBA) then
+    begin
+      if c = Length(Blocking) then SetLength(Blocking, 2*c);
+      Blocking[c] := i;
+      Inc(c);
+    end;
+  SetLength(Blocking, c);
+end;
 
 function TWebGraph.FindNode(Name: String): Int32;
 begin
@@ -211,7 +276,7 @@ type
 var
   queue: array of TNode;
   visited: TBoolArray;
-  cIdx, pathIdx, n: Int32;
+  cIdx, pathIdx, i: Int32;
   current, node: TNode;
   altPaths: array of TIntArray;
   p,q: TPoint;
@@ -232,7 +297,11 @@ var
 begin
   queue   := [[[start],0]];
   SetLength(visited, Length(Self.Nodes));
+  
+  // block certain paths by marking them as visited
+  for i:=0 to High(Blocking) do Visited[Blocking[i]] := True;
 
+  // ...
   while Length(queue) <> 0 do
   begin
     current := GetNextShortest();
@@ -241,9 +310,7 @@ begin
     Visited[cIdx] := True;
 
     if (cIdx = Goal) then
-    begin
       Exit(current.Indices);
-    end;
 
     p := Self.Nodes[cIdx];
     for pathIdx in Self.Paths[cIdx] do
@@ -301,6 +368,8 @@ begin
   nodes := Self.FindPath(n1,n2,Rnd);
   if (Length(nodes) = 0) then
     RaiseException('Points `'+ToStr(p)+'` and `'+ToStr(q)+'` does not connect');
+
+  // if distance between nodes > ??? then Unreliable result
 
   Result += p;
   Result += NodesToPoints(nodes);
@@ -404,9 +473,9 @@ begin
 end;
 
 
-{$i world.graph}
+{$I world.graph}
 var 
-  RSW_Graph: TWebGraph := WorldGraph;
+  RSW_Graph: TWebGraph := WorldGraph.Copy();
 
 
 
