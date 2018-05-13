@@ -158,7 +158,7 @@ end;
 // Positioning related methods:
 
 // Cross correlation without any resizing around an area.
-function TRSPosFinder.XCorrPeakNear(p:TPoint; Large, Sub:T2DIntArray; Area:Int32): TPoint;
+function TRSPosFinder.FindImageNear(p:TPoint; Large, Sub:T2DIntArray; Area:Int32): TPoint;
 var
   W,H: Int32;
   mat: T2DIntArray;
@@ -167,13 +167,13 @@ begin
   H := High(Large);
   W := High(Large[0]);
   if (H < Length(Sub)) or (W < Length(Sub[0])) then
-    RaiseException(erException, 'TRSPosFinder.FindPeakAround: `large` bitmap is smaller than `sub`');
+    RaiseException(erException, 'TRSPosFinder.FindImageNear: `large` bitmap is smaller than `sub`');
   
   B := [p.x, p.y, p.x + Length(Sub[0]), p.y + Length(Sub)];
   B := [B.x1-Area, B.y1-Area, B.x2+Area, B.y2+Area];
   B := [max(0,B.x1),max(0,B.y1),min(W,B.x2),min(H,B.y2)];
   mat := Large.Crop(B);
-            
+  
   Result := MatchTemplate(mat, Sub, Self.TMFormula).ArgMax();
   Result := [Result.x-Area+p.x, Result.y-Area+p.y];
 end;
@@ -182,7 +182,7 @@ function TRSPosFinder.GetLocalPos(): TPoint;
 var
   minimap, tmpLocal, tmpMMap: T2DIntArray;
   match: T2DRealArray;
-  best: TFeaturePoint;
+  best: TPoint;
   //bmp: TMufasaBitmap;
 begin
   Self.UpdateMap(Self.MustUpdateAddr());
@@ -197,18 +197,13 @@ begin
   //bmp.Free();
   
   match := MatchTemplate(tmpLocal, tmpMmap, Self.TMFormula);
-  with match.ArgMax() do
-  begin
-    best.Value := match[Y,X];
-    best.X := X * self.ScanRatio;
-    best.Y := Y * self.ScanRatio;
-  end;
-
-  Result := XCorrPeakNear([best.x, best.y], LocalMap, Minimap, 20);
+  best  := match.ArgMax();
+  
+  Result := FindImageNear(best * self.ScanRatio, LocalMap, Minimap, 20);
   Result.X += Length(minimap[0]) div 2;
   Result.Y += Length(minimap   ) div 2;
-
-  Self.Similarity := best.Value;
+  
+  Self.Similarity := match[best.Y, best.X];
 end;
 
 

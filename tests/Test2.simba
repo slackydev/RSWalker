@@ -13,12 +13,14 @@ end;
 
 begin
   //RSW.Init('world.png');
-  RSW.InitEx('world', [[3,5],[3,6],[3,7],[4,5],[4,6],[4,7],[5,5],[5,6],[5,7]]);
-
-  RSW.MemScanEnabled := True;
-  RSW.SkipClose := 20;
-  RSW.onMoveEvent := @onMove;
+  RSW.InitEx('world', RSWUtils.SliceRange([2,2],[5,7]));
   AddOnTerminate(@RSW.Free);
 
-  WriteLn RSW.WebWalk(locFalador);
+  RSW.MemScanEnabled := True;
+  RSW.SkipClose   := 10;
+  RSW.onMoveEvent := @onMove;
+  RSW.ScreenWalk  := True;   // experimental for short walks
+
+  //WriteLn RSW.WebWalk(locCatherbyBank);
+  WriteLn RSW.WebWalk(locEdgeville);
 end.

@@ -29,26 +29,32 @@ type
   TOnMoveEvent = procedure(Sender: PRSWalker);
   
   TRSWalker = record
-    WorldMap, worldSample: T2DIntArray;
-    Graph: TWebGraph;
-    SkipClose: Int32;
-    MinRunEnergy: Int32;
-    KeepMouseActive: Boolean;
-
+  //internals
     Finder: TRSPosFinder;
-    MemScanEnabled: Boolean;
+    WorldMap, WorldSample: T2DIntArray;
     LocalMap: T2DIntArray;
-    Global: TPoint;
-
-    FPath: TPointArray;
-    FPathIdx: Int32;
-    FBaseOffset: TPoint;
-
+    
+    FGlobal: TPoint;           // memscan related variable
+    FBaseOffset: TPoint;       // start of map slices
+    FPath: TPointArray;        // current path, set by calling WalkPath
+    FPathIdx: Int32;           // current index in current path.
+  
+  //commonly adjusted variables
+    SkipClose: Int32;          // how near the flag before it can click next point
+    MinRunEnergy: Int32;       // minimum run energy before it can toggle run
+    KeepMouseActive: Boolean;  // unused
+    ScreenWalk: Boolean;       // walk using mainscreen rather than minimap
+    MemScanEnabled: Boolean;   // disable MemScan even tho it may be loaded and all
+    Graph: TWebGraph;          // wab walking graph, you can load your own graph.
+  
+  //hooks
     onWalkEvent: TOnWalkEvent;
     onMoveEvent: TOnMoveEvent;
-    
-    Enabled:Boolean;
+  
+  //core switch, can be toggled off to stop walking mid walk [toggles on automatically by walking with RSW]
+    Enabled: Boolean;
   end;
+ 
   
 var
   RSW_SEARCH_PATHS: TStringArray := [
@@ -60,32 +66,29 @@ var
   ];
 
 
+{implementation}
+
+
 procedure TRSWalker.SetDefaultValues();
 begin
-  onWalkEvent  := nil;
-  onMoveEvent  := nil;
-
-  SkipClose   := 30;
-  MinRunEnergy:= 20;
-  Graph       := RSW_Graph;
-  
-  MemScanEnabled := True;//{$IFDEF HAS_MEMSCAN}True{$ELSE}False{$ENDIF};
-  Enabled := True;
+  onWalkEvent    := nil;
+  onMoveEvent    := nil;
+  SkipClose      := 30;
+  MinRunEnergy   := 20;
+  Graph          := RSW_Graph;
+  MemScanEnabled := {$IFDECL TMEMSCAN}True{$ELSE}False{$ENDIF};
+  Enabled        := True;
 end;
 
 function TRSWalker.TryGetClientID(): UInt32; static;
-var
-  H:PtrUInt;
 begin
+  Result := 0;
   {$IFDECL TMEMSCAN}
     {$IFDEF SMART}
       Result := SMART.PID;
     {$ELSE}
-      H := Client.GetIOManager().GetKeyMouseTarget().GetHandle();
-      Result := GetWindowProcessID(H);
+      Result := GetWindowProcessID( Client.GetIOManager().GetKeyMouseTarget().GetHandle() );
     {$ENDIF}
-  {$ELSE}
-    Result := 0;
   {$ENDIF}
 end;
 
@@ -102,7 +105,7 @@ end;
 
 procedure TRSWalker.Init(World: String; PID:Int32=0; AScanRatio:Int32=6);
 var
-  BMP:Integer;
+  BMP: PtrInt;
 begin
   with self do
   begin
@@ -110,7 +113,7 @@ begin
     Finder.Init(PID);
     Finder.ScanRatio := AScanRatio;
     Finder.TMFormula := TM_CCOEFF_NORMED;
-    {$IFDECL ClearFFTCache}ClearFFTCache{$ENDIF};
+    {$IFDECL ClearFFTCache}ClearFFTCache;{$ENDIF}
 
     self.SetDefaultValues();
     
@@ -136,7 +139,7 @@ begin
     Finder.Init(PID);
     Finder.ScanRatio := AScanRatio;
     Finder.TMFormula := TM_CCOEFF_NORMED;
-    {$IFDECL ClearFFTCache}ClearFFTCache{$ENDIF};
+    {$IFDECL ClearFFTCache}ClearFFTCache;{$ENDIF};
 
     Self.SetDefaultValues();
 
@@ -167,6 +170,7 @@ end;
 
 {---| IF MEMSCAN |---]
   Changes the state of MemScan (use, or not use)
+  Returns True if it's enabled.
 }
 function TRSWalker.ToggleMemScan(): Boolean;
 begin
@@ -192,12 +196,7 @@ begin
   shift := Point(pt.x-B.x1, pt.y-B.y1);
   
   Result := MatchTemplate(WorldSample, locSample, Finder.TMFormula).ArgMax();
-  Result := finder.XCorrPeakNear(
-    Point(Result.x*Finder.ScanRatio, Result.y*Finder.ScanRatio),
-    WorldMap,
-    loc,
-    20
-  );
+  Result := finder.FindImageNear(Result * Finder.ScanRatio, WorldMap, loc, 20);
 
   Result.x := (Result.x + shift.x) - pt.x;
   Result.y := (Result.y + shift.y) - pt.y;
@@ -216,7 +215,7 @@ begin
   if sim < 1 then
   begin
     self.LocalMap := Finder.LocalMap;
-    self.Global   := self.FindChunk(localPt);
+    self.FGlobal   := self.FindChunk(localPt);
   end;
 end;
 
@@ -228,10 +227,10 @@ function TRSWalker._GetPos(): TPoint;
 var
   localPt:TPoint;
 begin
-  localPt := finder.GetLocalPos();
+  localPt := Finder.GetLocalPos();
   self.UpdateGlobalStart(localPt);
-  Result.x := localPt.x + self.Global.x;
-  Result.y := localPt.y + self.Global.y;
+  Result.x := localPt.x + self.FGlobal.x;
+  Result.y := localPt.y + self.FGlobal.y;
 end;
 
 {
@@ -240,29 +239,21 @@ end;
 }
 function TRSWalker._GetPosCustom(): TPoint;
 var
-  tmpMMap,Minimap: T2DIntArray;
-  match: T2DRealArray;
-  best: TFeaturePoint;
-  //c: Int32;
+  mmsample, minimap: T2DIntArray;
+  xcorr: T2DRealArray;
+  best: TPoint;
 begin
-  Minimap := RSWUtils.GetMinimap(True, False);
-  //c := SmartColorChan(Minimap);
-  //Minimap := SmartColor(Minimap, c);
-
-  tmpMMap := Minimap.DownscaleImage(Finder.ScanRatio);
-  //match   := MatchTemplate(SmartColor(WorldSample, c), tmpMmap, Finder.TMFormula);
-  match   := MatchTemplate(WorldSample, tmpMmap, Finder.TMFormula);
-  with match.ArgMax() do
-  begin
-    best.Value := match[Y,X];
-    best.X := X * Finder.ScanRatio;
-    best.Y := Y * Finder.ScanRatio;
-  end;
-
-  Result   := Finder.XCorrPeakNear([best.x, best.y], WorldMap, Minimap, 20);
+  minimap := RSWUtils.GetMinimap(True, False);
+  mmsample:= minimap.DownscaleImage(Finder.ScanRatio);
+  
+  xcorr   := MatchTemplate(WorldSample, mmsample, Finder.TMFormula);
+  best    := xcorr.ArgMax();
+  
+  Result   := Finder.FindImageNear(best * Finder.ScanRatio, WorldMap, Minimap, 20);
   Result.X += Length(minimap[0]) div 2;
   Result.Y += Length(minimap   ) div 2;
-  Finder.Similarity := best.Value;
+  
+  Finder.Similarity := xcorr[best.Y, best.X];
 end;
 
 
@@ -319,6 +310,7 @@ var
   i,st: Int64;
   t: TCountDown;
   flag: TPoint;
+  B: TBox;
   skipDist: Double;
 begin
   mmPos := RotatePoint(mmPos, Minimap.GetCompassAngle(False), Minimap.Center.X, Minimap.Center.Y);
@@ -328,7 +320,15 @@ begin
     while (Rnd > 1) and (Hypot(mmPos.x-Minimap.Center.X, mmPos.y-Minimap.Center.Y) >= MM_RAD - Rnd*Sqrt(2)) do
       Dec(Rnd);
 
-  mouse.Click(mmPos, rnd, mouse_left);
+  if not Self.ScreenWalk then
+    mouse.Click(mmPos, rnd, mouse_left)
+  else begin
+    B := Minimap.PointToMsBox(mmPos);
+    B.LimitTo(Mainscreen.GetBounds);  //fucking self-alterting procedures (I did not make these!)
+    mouse.Click(B, mouse_left);
+  end;
+
+  Wait(300,500);
   t.Init(25000);
   repeat
     if  (i mod 2 = 0) and (Minimap.GetRunEnergy >= self.MinRunEnergy) then
@@ -354,6 +354,7 @@ end;
 function TRSWalker.WalkStep(WorldPos:TPoint; Rnd:Int32=0; WaitFlag:Boolean=True): Boolean; overload;
 var
   mmPos, myPos: TPoint;
+  B: TBox;
   t: TCountDown;
 begin
   myPos := self.GetMyPos();
@@ -364,7 +365,14 @@ begin
 
   mmPos := RotatePoint(mmPos, Minimap.GetCompassAngle(False), Minimap.Center.X, Minimap.Center.Y);
   
-  Mouse.Click(mmPos, Rnd, mouse_left);
+  if not Self.ScreenWalk then
+    mouse.Click(mmPos, rnd, mouse_left)
+  else begin
+    B := Minimap.PointToMsBox(mmPos);
+    B.LimitTo(Mainscreen.GetBounds);  //fucking self-alterting procedures (I did not make these!)
+    mouse.Click(B, mouse_left);
+  end;
+
   if WaitFlag then
   begin
     t.Init(25000);
@@ -404,7 +412,7 @@ end;
  One hook is used here:
  - onWalkEvent(self, myPos);
 *)
-function TRSWalker.WalkPath(Path: TPointArray; Rand:Int32=4; FinalCorrection:Boolean=False): Boolean;
+function TRSWalker.WalkPath(Path: TPointArray; ClickRnd:Int32=4; FinalCorrection:Boolean=False): Boolean;
 var
   i,j,h,prev,tmp,attempts: Int32;
   nearest,distance: Double;
@@ -438,7 +446,7 @@ begin
 
   // generate a dense path from starting point
   FPath := Copy(path, i, Length(path)-i);
-  FPath := RSWUtils.BuildPath([myPos]+FPath, 3,8);
+  FPath := RSWUtils.BuildPath([myPos]+FPath, 1,6);
 
   // do the walk
   t.Init(Random(23000, 27000));
@@ -448,8 +456,16 @@ begin
   begin
     self.minRunEnergy := RandomizeRunEnergy(self.minRunEnergy);
     myPos := Self.GetMyPos();
-    while (FPathIdx < H) and (Hypot(myPos.x-FPath[FPathIdx+1].x, myPos.y-FPath[FPathIdx+1].y) < MM_RAD) do
-      Inc(FPathIdx);
+
+    if not Self.ScreenWalk then
+    begin
+      while (FPathIdx < H) and (Hypot(myPos.x-FPath[FPathIdx+1].x, myPos.y-FPath[FPathIdx+1].y) < MM_RAD) do
+        Inc(FPathIdx);
+    end else
+    begin
+      while (FPathIdx < H) and Mainscreen.FBounds.Contains(Minimap.PointToMs(FPath[FPathIdx+1] - myPos + minimap.Center)) do
+        Inc(FPathIdx);
+    end;
 
     if prev = FPathIdx then
     begin
@@ -467,15 +483,15 @@ begin
     if Assigned(@self.onWalkEvent) then
     begin
       self.onWalkEvent(@self, myPos);
-      if not(self.enabled) then
+      if not(self.Enabled) then
       begin
         self.MinRunEnergy := tmp;
         Exit(True);
       end;
     end;
 
-    self.WalkToPos(mmPos, Rand, FPathIdx<>h);
-    if not(self.enabled) then
+    self.WalkToPos(mmPos, ClickRnd, FPathIdx<>h);
+    if not(self.Enabled) then
     begin
       self.MinRunEnergy := tmp;
       Exit(True);

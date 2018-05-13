@@ -197,6 +197,13 @@ begin
   Result.SetSize((ymax-B.y1+1) * SLICE_HEIGHT, (xmax-B.x1+1) * SLICE_WIDTH);
 end;
 
+function TRSWUtils.SliceRange(Start, Stop: TPoint): TPointArray; static;
+var x,y: Int32;
+begin
+  for y:=Start.y to Stop.y do
+    for x:=Start.x to Stop.x do Result += Point(x,y);
+end;
+
 function TRSWUtils.PathToSlices(Path: TPointArray): TPointArray; static;
 var 
   B: TBox;
