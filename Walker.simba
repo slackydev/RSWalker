@@ -40,6 +40,7 @@ type
     FPathIdx: Int32;           // current index in current path.
   
   //commonly adjusted variables
+    MinimapShift: Int32;       // the minimum pixelshift for isMoving-tests 
     SkipClose: Int32;          // how near the flag before it can click next point
     MinRunEnergy: Int32;       // minimum run energy before it can toggle run
     KeepMouseActive: Boolean;  // unused
@@ -76,6 +77,7 @@ begin
   SkipClose      := 30;
   MinRunEnergy   := 20;
   Graph          := RSW_Graph;
+  MinimapShift   := 220;
   MemScanEnabled := {$IFDECL TMEMSCAN}True{$ELSE}False{$ENDIF};
   Enabled        := True;
 end;
@@ -344,7 +346,7 @@ begin
       self.onMoveEvent(@self);
     Wait( Max(1, st-GetTickCount()) );
 
-  until (not self.Enabled) or (not Minimap.IsPlayerMoving(165)) or (t.IsFinished());
+  until (not self.Enabled) or (not Minimap.IsPlayerMoving(Self.MinimapShift)) or (t.IsFinished());
 end;
 
 
@@ -388,18 +390,18 @@ end;
 (*
   Waits until your player is finished moving, while calling move event.
 *)
-procedure TRSWalker.WaitPlayerMoving(TimeOut: Int32 = 30000; MinShift: Int32 = 220);
+procedure TRSWalker.WaitPlayerMoving(TimeOut: Int32 = 30000);
 var
   T: UInt64;
 begin
   T := GetTickCount() + TimeOut;
-
-  while (T > GetTickCount()) do
+  
+  while (T > GetTickCount()) and (Self.Enabled) do
   begin
     if Assigned(@Self.OnMoveEvent) then
       Self.OnMoveEvent(@Self);
-
-    if (not Minimap.isFlagPresent()) and (not Minimap.isPlayerMoving(MinShift)) then
+    
+    if (not Minimap.isFlagPresent()) and (not Minimap.isPlayerMoving(Self.MinimapShift)) then
       Break;
     Wait(Random(50, 100));
   end;
