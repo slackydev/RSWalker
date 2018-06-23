@@ -18,7 +18,7 @@
   {$include_once MemScan.pas}
 {$ENDIF}
 
-{$include_once utilities.pas}
+{$include_once Utilities.pas}
 {$include_once Base.pas}
 
 
@@ -611,8 +611,8 @@ begin
   {$ELSE}
     BMP.DrawClippedText(
       '('+ToStr(glob.x)+', '+ToStr(glob.y)+')',
-      'SmallChars07',
       Point(422,16),
+      'SmallChars07',
       True, $FFFFFF);
   {$ENDIF}
   
@@ -638,14 +638,14 @@ begin
   {$ELSE}
     BMP.DrawClippedText(
       'Acc '+ToStr(Round(Finder.Similarity,3)),
-      'SmallChars07',
       Point(422,370),
+      'SmallChars07',
       True, $FFFFFF);
     
     BMP.DrawClippedText(
       'Used '+ToStr(Round(Finder.Similarity,3))+' ms',
-      'SmallChars07',
       Point(422,396),
+      'SmallChars07',
       True, $FFFFFF);
   {$ENDIF}
 
