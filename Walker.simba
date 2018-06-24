@@ -336,9 +336,11 @@ begin
     if  (i mod 2 = 0) and (Minimap.GetRunEnergy >= self.MinRunEnergy) then
       Minimap.ToggleRun(True);
 
-    flag := [0,0];
-    Minimap.FindFlag(flag);
-    if Hypot(flag.X-Minimap.Center.X, flag.Y-Minimap.Center.Y) < skipDist then
+    if Minimap.FindFlag(flag) then
+    begin
+      if (flag.DistanceTo(Minimap.Center) < skipDist) then
+        Break;
+    end else if (Self.GetMyPos().DistanceTo(FPath[FPathIdx]) < skipDist) then
       Break;
 
     st := GetTickCount() + Random(60);
