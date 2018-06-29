@@ -10,16 +10,11 @@
   {$loadlib ../Includes/RSWalker/libWalker.dll}
 {$ENDIF}
 
-{$IFNDECL MatchTemplate}
-  {$loadlib ../Includes/RSWalker/matchTempl}
-{$ENDIF}
-
 {$IFDECL TMEMSCAN}
   {$include_once MemScan.pas}
 {$ENDIF}
 
 {$include_once Utilities.pas}
-{$include_once Base.pas}
 
 
 type
@@ -30,22 +25,24 @@ type
   
   TRSWalker = record
   //internals
-    Finder: TRSPosFinder;
-    WorldMap, WorldSample: T2DIntArray;
-    LocalMap: T2DIntArray;
-    
+    WorldMap, WorldSample: TMufasaBitmap;
+    LocalMap: TMufasaBitmap;
+
     FGlobal: TPoint;           // memscan related variable
     FBaseOffset: TPoint;       // start of map slices
     FPath: TPointArray;        // current path, set by calling WalkPath
     FPathIdx: Int32;           // current index in current path.
   
-  //commonly adjusted variables
+  //adjustable or otherwise useful variables
+    TMFormula: ETMFormula;
+    ScanRatio: Byte;
+    Similarity: Double;
+
     MinimapShift: Int32;       // the minimum pixelshift for isMoving-tests 
     SkipClose: Int32;          // how near the flag before it can click next point
     MinRunEnergy: Int32;       // minimum run energy before it can toggle run
     KeepMouseActive: Boolean;  // unused
     ScreenWalk: Boolean;       // walk using mainscreen rather than minimap
-    MemScanEnabled: Boolean;   // disable MemScan even tho it may be loaded and all
     Graph: TWebGraph;          // wab walking graph, you can load your own graph.
   
   //hooks
@@ -78,7 +75,6 @@ begin
   MinRunEnergy   := 20;
   Graph          := RSW_Graph;
   MinimapShift   := 220;
-  MemScanEnabled := {$IFDECL TMEMSCAN}True{$ELSE}False{$ENDIF};
   Enabled        := True;
 end;
 
@@ -105,29 +101,22 @@ begin
   RaiseException(erException, 'TRSWalker.Init -> Map `'+result+'` not found');
 end;
 
-procedure TRSWalker.Init(World: String; PID:Int32=0; AScanRatio:Int32=6);
+procedure TRSWalker.Init(World: String; AScanRatio:Int32=6);
 var
-  BMP: PtrInt;
+  BMP: TMufasaBitmap;
 begin
-  with self do
-  begin
-    if (PID = 0) then PID := self.TryGetClientID();
-    Finder.Init(PID);
-    Finder.ScanRatio := AScanRatio;
-    Finder.TMFormula := TM_CCOEFF_NORMED;
-    {$IFDECL ClearFFTCache}ClearFFTCache;{$ENDIF}
+  Self.ScanRatio := AScanRatio;
+  Self.TMFormula := TM_CCOEFF_NORMED;
+  Self.SetDefaultValues();
 
-    self.SetDefaultValues();
-    
-    if world <> '' then
-    begin
-      BMP := LoadBitmap(FindMapPath(world)+world);
-      WorldMap := BitmapToMatrix(BMP);
-      FreeBitmap(BMP);
-      WorldSample := WorldMap.DownscaleImage(Finder.ScanRatio);
-    end else
-      self.Enabled := False;
-  end;
+  if world <> '' then
+  begin
+    WorldMap.Init(client.GetMBitmaps);
+    WorldMap.LoadFromFile(FindMapPath(world)+world);
+    WorldSample.Init(client.GetMBitmaps);
+    WorldMap.Downsample(Self.ScanRatio, WorldSample);
+  end else
+    Self.Enabled := False;
 end;
 
 procedure TRSWalker.InitEx(Name: String; Slices: TPointArray; PID:Int32=0; AScanRatio:Int32=6);
@@ -135,127 +124,84 @@ var
   BMP: TMufasaBitmap;
   Folder: String;
 begin
-  with self do
-  begin
-    if (PID = 0) then PID := self.TryGetClientID();
-    Finder.Init(PID);
-    Finder.ScanRatio := AScanRatio;
-    Finder.TMFormula := TM_CCOEFF_NORMED;
-    {$IFDECL ClearFFTCache}ClearFFTCache;{$ENDIF};
+  Self.ScanRatio := AScanRatio;
+  Self.TMFormula := TM_CCOEFF_NORMED;
+  Self.SetDefaultValues();
 
-    Self.SetDefaultValues();
+  Folder := FindMapPath(Format(SLICE_FMT, ['', Name, 0,0]));
+  Self.WorldMap := RSWUtils.AssembleSlices(Folder, Name, Slices, Self.FBaseOffset);
+  Self.WorldSample.Init(client.GetMBitmaps);
+  Self.WorldMap.Downsample(Self.ScanRatio, Self.WorldSample);
 
-    Folder := FindMapPath(Format(SLICE_FMT, ['', Name, 0,0]));
-    BMP    := RSWUtils.AssembleSlices(Folder, Name, Slices, Self.FBaseOffset);
-    WorldMap := BMP.ToMatrix();
-    BMP.Free();
-    WorldSample := WorldMap.DownscaleImage(Finder.ScanRatio);
-
-    Self.Graph.BlockOutside(Slices);
-  end;
+  Self.Graph.BlockOutside(Slices);
 end;
 
 procedure TRSWalker.Free();
 begin
-  Finder.Free();
   FBaseOffset := [0,0];
-  SetLength(WorldMap, 0);
-  SetLength(WorldSample, 0);
-  SetLength(LocalMap, 0);
+  WorldMap.Free();
+  WorldSample.Free();
+  WorldMap := nil;
+  WorldSample := nil;
 end;
 
 function TRSWalker.SetFormula(Formula: ETMFormula): TPoint;
 begin
-  Self.Finder.TMFormula := Formula;
+  Self.TMFormula := Formula;
 end;
 
-
-{---| IF MEMSCAN |---]
-  Changes the state of MemScan (use, or not use)
-  Returns True if it's enabled.
-}
-function TRSWalker.ToggleMemScan(): Boolean;
-begin
-  memScanEnabled := not memScanEnabled;
-  Result := memScanEnabled and (Finder.Process > 0);
-end;
-
-
-{---| IF MEMSCAN |---]
-  Locates the current minimap in the world map
-}
-function TRSWalker.FindChunk(pt:TPoint; area:Int32=100): TPoint;
+// Cross correlation without any resizing around an area.
+function TRSWalker.FindImageNear(p:TPoint; Large, Sub: TMufasaBitmap; Area:Int32): TPoint;
 var
-  loc,locSample: T2DIntArray;
+  W,H: Int32;
+  Slice: TMufasaBitmap;
   B: TBox;
-  shift: TPoint;
 begin
-  B := [pt.x-area, pt.y-area, pt.x+area, pt.y+area];
-  B := [max(52,B.x1),max(52,B.y1),min(459,B.x2),min(459,B.y2)];
+  W := Large.GetWidth - 1;
+  H := Large.GetHeight - 1;
+  Writeln([W,H]);
 
-  loc := self.LocalMap.Crop(b);
-  locSample := loc.DownscaleImage(Finder.ScanRatio);
-  shift := Point(pt.x-B.x1, pt.y-B.y1);
-  
-  Result := MatchTemplate(WorldSample, locSample, Finder.TMFormula).ArgMax();
-  Result := finder.FindImageNear(Result * Finder.ScanRatio, WorldMap, loc, 20);
-
-  Result.x := (Result.x + shift.x) - pt.x;
-  Result.y := (Result.y + shift.y) - pt.y;
-end;
-
-{---| IF MEMSCAN |---]
-  Updates the position of the current minimap-chuck
-  This function is only executed when the minimap loads a new chunk
-}
-procedure TRSWalker.UpdateGlobalStart(localPt:TPoint);
-var sim:Double;
-begin
-  if Length(self.LocalMap) = Length(Finder.LocalMap) then
-    sim := Finder.LocalMap.CompareImageAt(self.LocalMap, [0,0], 1);
-
-  if sim < 1 then
-  begin
-    self.LocalMap := Finder.LocalMap;
-    self.FGlobal   := self.FindChunk(localPt);
+  B := [p.x, p.y, p.x + Sub.GetWidth(), p.y + Sub.GetHeight()];
+  B := [B.x1-Area, B.y1-Area, B.x2+Area, B.y2+Area];
+  B := [max(0,B.x1),max(0,B.y1),min(W,B.x2),min(H,B.y2)];
+  Writeln(B);
+  Slice := Large.Copy(B.x1, B.y1, B.x2, B.y2);
+  client.getMBitmaps.AddBMP(Slice);
+  try
+    Result := Slice.MatchTemplate(Sub, Self.TMFormula).ArgMax();
+    Result := [Result.x-Area+p.x, Result.y-Area+p.y];
+  finally
+    Slice.Free();
   end;
-end;
-
-{---| IF MEMSCAN |---]
-  Returns the current position of our character when using memscan
-  - For normal usage use TRSWalker.GetMyPos 
-}
-function TRSWalker._GetPos(): TPoint;
-var
-  localPt:TPoint;
-begin
-  localPt := Finder.GetLocalPos();
-  self.UpdateGlobalStart(localPt);
-  Result.x := localPt.x + self.FGlobal.x;
-  Result.y := localPt.y + self.FGlobal.y;
 end;
 
 {
   Returns the current position of our character when NOT using memscan
   - For normal usage use TRSWalker.GetMyPos 
 }
-function TRSWalker._GetPosCustom(): TPoint;
+function TRSWalker._GetPos(): TPoint;
 var
-  mmsample, minimap: T2DIntArray;
-  xcorr: T2DRealArray;
+  mmsample, minimap: TMufasaBitmap;
+  xcorr: TSingleMatrix;
   best: TPoint;
 begin
   minimap := RSWUtils.GetMinimap(True, False);
-  mmsample:= minimap.DownscaleImage(Finder.ScanRatio);
-  
-  xcorr   := MatchTemplate(WorldSample, mmsample, Finder.TMFormula);
-  best    := xcorr.ArgMax();
-  
-  Result   := Finder.FindImageNear(best * Finder.ScanRatio, WorldMap, Minimap, 20);
-  Result.X += Length(minimap[0]) div 2;
-  Result.Y += Length(minimap   ) div 2;
-  
-  Finder.Similarity := xcorr[best.Y, best.X];
+  mmsample.Init(client.GetMBitmaps);
+  minimap.Downsample(Self.ScanRatio, mmsample);
+
+  try
+    xcorr   := WorldSample.MatchTemplate(mmsample, Self.TMFormula);
+    best    := xcorr.ArgMax();
+
+    Result   := Self.FindImageNear(best * Self.ScanRatio, WorldMap, Minimap, 20);
+    Result.X += minimap.GetWidth()  div 2;
+    Result.Y += minimap.GetHeight() div 2;
+
+    Self.Similarity := xcorr[best.Y, best.X];
+  finally
+    minimap.Free();
+    mmsample.Free();
+  end;
 end;
 
 
@@ -265,16 +211,13 @@ end;
 *)
 function TRSWalker.GetMyPos(minSimiliarty: Double = -$FFFFFFF): TPoint;
 begin
-  if Length(self.WorldMap) = 0 then
+  if self.WorldMap = nil then
     RaiseException('TRSWalker.GetMyPos -> RSWalker is not set up for this task!');
   
-  if (Finder.Process > 0) and (self.MemScanEnabled) then
-    Result := self._GetPos()
-  else
-    Result := self._GetPosCustom();
+  Result := self._GetPos();
 
   Result += Self.FBaseOffset;
-  if (self.Finder.Similarity < minSimiliarty) then
+  if (Self.Similarity < minSimiliarty) then
     Exit(Point(-1,-1));
 end;
 
@@ -429,7 +372,7 @@ var
     Result := Random(max(5,e-10), e+10);
   end;
 begin
-  if Length(worldMap) = 0 then
+  if Self.WorldMap = nil then
     RaiseException('TRSWalker.WalkPath -> RSWalker is not set up for this task!');
 
   self.Enabled := True;
@@ -570,7 +513,6 @@ end;
 procedure TRSWalker.DebugPos();
 var
   mx,my,x1,y1,x2,y2: Int32;
-  mat: T2DIntArray;
   BMP, BMP1: TMufasaBitmap;
   TPA: TPointArray;
   glob: TPoint;
@@ -583,15 +525,14 @@ begin
 
   x1 := Max(0, glob.x-200);
   y1 := Max(0, glob.y-200);
-  x2 := Min(x1+400, High(Self.WorldMap[0]));
-  y2 := Min(y1+400, High(Self.WorldMap));
+  x2 := Min(x1+400, Self.WorldMap.GetWidth()-1);
+  y2 := Min(y1+400, Self.WorldMap.GetHeight()-1);
 
-  mat := Self.WorldMap.Crop(Box(x1,y1,x2,y2));
   mx := glob.x - x1;
   my := glob.y - y1;
 
-  BMP1.Init(client.GetMBitmaps);
-  BMP1.DrawMatrix(mat);
+  BMP1 := Self.WorldMap.Copy(x1,y1,x2,y2);
+  client.getMBitmaps().AddBMP(BMP1);
   BMP1.LineTo(Point(0,my), Point(x2-x1,my), $00FF00);
   BMP1.LineTo(Point(mx,0), Point(mx,y2-y1), $00FF00);
   BMP1.DrawBox(Box(mx-2,my-2,mx+2,my+2), False, $FFFFFF);
@@ -619,15 +560,13 @@ begin
   {$ENDIF}
   
 
-  mat := RSWUtils.GetMinimap(True,False);
-  BMP1.Init(client.GetMBitmaps);
-  BMP1.DrawMatrix(mat);
+  BMP1 := RSWUtils.GetMinimap(True,False);
   BMP1.DrawTransparent(426,40, BMP);
   BMP1.Free();
 
   {$IFDEF WINDOWS}
     BMP.DrawSystemText(
-      'Acc '+ToStr(Round(Finder.Similarity,3)),
+      'Acc '+ToStr(Round(Self.Similarity,3)),
       'Courier New', 11,
       Point(422,370),
       True, $FFFFFF);
@@ -639,13 +578,13 @@ begin
       True, $FFFFFF);
   {$ELSE}
     BMP.DrawClippedText(
-      'Acc '+ToStr(Round(Finder.Similarity,3)),
+      'Acc '+ToStr(Round(Self.Similarity,3)),
       Point(422,370),
       'SmallChars07',
       True, $FFFFFF);
     
     BMP.DrawClippedText(
-      'Used '+ToStr(Round(Finder.Similarity,3))+' ms',
+      'Used '+ToStr(Round(Self.Similarity,3))+' ms',
       Point(422,396),
       'SmallChars07',
       True, $FFFFFF);

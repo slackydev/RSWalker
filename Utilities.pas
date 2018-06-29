@@ -130,13 +130,13 @@ begin
   end;
 end;
 
-function TRSWUtils.GetMinimap(Smooth, Sample: Boolean; ratio:Int32=1): T2DIntArray; static;
+function TRSWUtils.GetMinimap(Smooth, Sample: Boolean; ratio:Int32=1): TMufasaBitmap; static;
 var
-  bmp: PtrUInt;
   B: TBox;
   theta: Double;
+  TmpRes: TMufasaBitmap;
 
-  procedure ClearCorners();
+  procedure ClearCorners(bmp: TMufasaBitmap);
   var
     i: Int32;
     TPA: TPointArray;
@@ -145,25 +145,32 @@ var
     TPA := TPA.Invert();
     FilterPointsBox(TPA, MM_AREA.X1,MM_AREA.Y1+1,MM_AREA.X2,MM_AREA.Y2);
     TPA.Offset(Point(-MM_AREA.X1,-MM_AREA.Y1));
-    DrawTPABitmap(BMP, TPA, 0);
+    BMP.DrawTPA(TPA, 0);
     TPA.SortByY(True);
     for i:=0 to High(TPA) do
-      FastSetPixel(bmp, TPA[i].x,TPA[i].y, FastGetPixel(bmp,TPA[i].x,TPA[i].y-1));
+      bmp.SetPixel(TPA[i].x,TPA[i].y, bmp.GetPixel(TPA[i].x,TPA[i].y-1));
   end;
 begin
-  theta := Minimap.GetCompassAngle(False);
-  BMP   := BitmapFromClient(MM_AREA.x1, MM_AREA.y1, MM_AREA.x2, MM_AREA.y2);
-  ClearCorners();
-  Result := BitmapToMatrix(BMP);
-  FreeBitmap(BMP);
-  Result := Result.RotateImage(theta, False, Smooth);
+  theta  := Minimap.GetCompassAngle(False);
+  TmpRes := GetMufasaBitmap(BitmapFromClient(MM_AREA.x1, MM_AREA.y1, MM_AREA.x2, MM_AREA.y2));
+  ClearCorners(TmpRes);
+
+  Result.Init(client.GetMBitmaps);
+  TmpRes.RotateBitmapEx(theta, False, Smooth, Result);
+  TmpRes.Free();
+
   B := RSWUtils.MinBoxInRotated(MM_CROP, theta);
   while B.Width  > 112 do begin B.x2 -= 1; B.x1 += 1; end;
   while B.Height > 100 do begin B.y2 -= 1; B.y1 += 1; end;
-  Result := Result.Crop(B);
-  
+  Result.Crop(B.x1,B.y1,B.x2,B.y2);
+
   if Sample then
-    Result := Result.DownscaleImage(ratio);
+  begin
+    TmpRes.Init(client.GetMBitmaps);
+    Result.Downsample(ratio, TmpRes);
+    Result.Free();
+    Result := TmpRes;
+  end;
 end;
 
 
