@@ -1,5 +1,7 @@
 type
-  TRSWUtils = type Pointer;
+  TRSWUtils = record
+    MapFilters: set of (mfDots, mfSymbols);
+  end;
   
   TWebGraph = record
     Nodes: TPointArray;
@@ -17,7 +19,7 @@ var
   SLICE_HEIGHT = 768;
   SLICE_FMT    = '%s/[%d_%d].png';
   
-  RSWUtils: TRSWUtils;
+  RSWUtils: TRSWUtils := [[mfDots, mfSymbols]];
 
   
   
@@ -133,7 +135,7 @@ end;
 function TRSWUtils.ClearDotsHeuristc(BMP: TMufasaBitmap; DoFree:Boolean; PTS: TPointArray): TMufasaBitmap; static;
 var
   search: TPointArray;
-  i,j,w,h,color: Int32;
+  i,w,h,color: Int32;
   p,q: TPoint;
   isYellow, isRed, isWhite, isBlack: Boolean;
 begin
@@ -147,9 +149,11 @@ begin
 
   for p in PTS do
   begin
-    for j:=0 to High(search) do
+    p.x -= MM_AREA.x1;
+    p.y -= MM_AREA.y1;
+    for i:=0 to High(search) do
     begin
-      q := search[j] + p - Point(10,10);
+      q := search[i] + p - Point(10,10);
       if not((q.x > 0) and (q.y > 0) and (q.x < w) and (q.y < h)) then
         continue;
 
@@ -164,12 +168,7 @@ begin
 
       if (not isWhite) and  (not isYellow) and (not isRed) and (not isBlack) then
       begin
-        color := BMP.GetPixel(q.x,q.y);
-        Result.SetPixel(p.x+1,p.y+0, color);
-        Result.SetPixel(p.x+2,p.y+0, color);
-        Result.DrawBox(Box(p.x,p.y+1,p.x+3,p.y+3), True, color);
-        Result.SetPixel(p.x+1,p.y+4, color);
-        Result.SetPixel(p.x+2,p.y+4, color);
+        Result.DrawClippedBox(Box(p.x,p.y,p.x+4,p.y+4), True, BMP.GetPixel(q.x,q.y));
         break;
       end;
     end;
@@ -177,38 +176,77 @@ begin
 
   if DoFree then
     BMP.Free();
-    
+
   SetColorToleranceSpeed(1);
   SetToleranceSpeed2Modifiers(0.2,0.2);
 end;
 
-function TRSWUtils.GetMinimap(Smooth, Sample: Boolean; ratio:Int32=1): TMufasaBitmap; static;
+procedure TRSWUtils.ClearSymbols(bmp: TMufasaBitmap); static;
+var
+  circle7,circle8,tmp,blacks: TPointArray;
+  colors: TIntArray;
+  p,q: TPoint;
+  c,w,h: Int32;
+begin
+  circle7 := TPAFromCircle(7,0, 7);
+  circle8 := TPAFromCircle(7,0, 8);
+  bmp.FindColors(blacks, 65536);
+  w := bmp.getWidth;
+  h := bmp.getHeight;
+
+  for q in blacks do
+  begin
+    c := 0;
+    for p in circle7 do
+    begin
+      p += q;
+      if PointInTPA(p, blacks) then Inc(c);
+    end;
+
+    if c > Length(circle7)*0.8 then
+    begin
+      tmp := circle8.OffsetFunc(q).FilterBox(Box(0,0,w-1,h-1));
+      colors := bmp.GetPixels(tmp);
+      bmp.DrawClippedBox(Box(q.x,q.y-7,q.x+14,q.y+7), True, colors.Mode());
+    end;
+  end;
+end;
+
+procedure TRSWUtils.ClearCorners(bmp: TMufasaBitmap);
+var
+  i: Int32;
+  TPA: TPointArray;
+begin
+  TPA := TPAFromPolygon(Minimap.MaskPoly);
+  TPA := TPA.Invert();
+  FilterPointsBox(TPA, MM_AREA.X1,MM_AREA.Y1+1,MM_AREA.X2,MM_AREA.Y2);
+  TPA.Offset(Point(-MM_AREA.X1,-MM_AREA.Y1));
+  BMP.DrawTPA(TPA, 0);
+  TPA.SortByY(True);
+  for i:=0 to High(TPA) do
+    bmp.SetPixel(TPA[i].x,TPA[i].y, bmp.GetPixel(TPA[i].x,TPA[i].y-1));
+end;
+
+function TRSWUtils.GetMinimap(Smooth, Sample: Boolean; ratio:Int32=1): TMufasaBitmap;
 var
   B: TBox;
   theta: Double;
   TmpRes: TMufasaBitmap;
-
-  procedure ClearCorners(bmp: TMufasaBitmap);
-  var
-    i: Int32;
-    TPA: TPointArray;
-  begin
-    TPA := TPAFromPolygon(Minimap.MaskPoly);
-    TPA := TPA.Invert();
-    FilterPointsBox(TPA, MM_AREA.X1,MM_AREA.Y1+1,MM_AREA.X2,MM_AREA.Y2);
-    TPA.Offset(Point(-MM_AREA.X1,-MM_AREA.Y1));
-    BMP.DrawTPA(TPA, 0);
-    TPA.SortByY(True);
-    for i:=0 to High(TPA) do
-      bmp.SetPixel(TPA[i].x,TPA[i].y, bmp.GetPixel(TPA[i].x,TPA[i].y-1));
-  end;
 begin
   theta  := Minimap.GetCompassAngle(False);
   TmpRes := GetMufasaBitmap(BitmapFromClient(MM_AREA.x1, MM_AREA.y1, MM_AREA.x2, MM_AREA.y2));
-  ClearCorners(TmpRes);
-  Result := RSWUtils.ClearDotsHeuristc(TmpRes, True, Minimap.GetDots([MMDotNPC, MMDotItem, MMDotPlayer]));
-  TmpRes := Result;
-  Result := nil;
+
+  if mfSymbols in Self.MapFilters then
+    RSWUtils.ClearSymbols(TmpRes);
+
+  RSWUtils.ClearCorners(TmpRes);
+
+  if mfDots in Self.MapFilters then
+  begin
+    Result := RSWUtils.ClearDotsHeuristc(TmpRes, True, Minimap.GetDots([MMDotNPC, MMDotItem, MMDotPlayer]));
+    TmpRes := Result;
+    Result := nil;
+  end;
 
   Result.Init(client.getMBitmaps);
   TmpRes.RotateBitmapEx(theta, False, Smooth, Result);
