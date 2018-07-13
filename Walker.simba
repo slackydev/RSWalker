@@ -52,15 +52,26 @@ type
   //core switch, can be toggled off to stop walking mid walk [toggles on automatically by walking with RSW]
     Enabled: Boolean;
   end;
- 
+
+{$IFNDEF CODEINSIGHT}
+var
+  RSWPath: String := {$macro CURRENT_FILE};
+  ___TMP_TSA: TStringArray;
+begin
+  ___TMP_TSA := Explode({$IFDEF WINDOWS}'\'{$ELSE}'/'{$ENDIF}, RSWPath);
+  SetLength(___TMP_TSA, Length(___TMP_TSA)-1);
+  RSWPath := Implode('/', ___TMP_TSA) + '/';
+end;
+{$ENDIF}
   
 var
   RSW_SEARCH_PATHS: TStringArray := [
      '',
      IncludePath,
      IncludePath+'maps/',
-     IncludePath+'RSWalker/maps/',
-     IncludePath+'RSWalker/maps/slices/'
+     RSWPath+'maps/',
+     RSWPath+'maps/world/',
+     RSWPath+'maps/zeah/'
   ];
 
 
@@ -90,15 +101,21 @@ begin
   {$ENDIF}
 end;
 
-function TRSWalker.FindMapPath(path:String): String;
+function TRSWalker.FindMapPath(path:String; IsDir: Boolean = False): String;
 var
   testPath:String;
 begin
-  for testPath in RSW_SEARCH_PATHS do
-    if FileExists(testPath+path) then
-      Exit(testPath);
+  if not IsDir then
+  begin
+    for testPath in RSW_SEARCH_PATHS do
+      if FileExists(testPath+path) then
+        Exit(testPath);
+  end else
+    for testPath in RSW_SEARCH_PATHS do
+      if DirectoryExists(testPath+path) then
+        Exit(testPath);
 
-  RaiseException(erException, 'TRSWalker.Init -> Map `'+result+'` not found');
+  raise 'TRSWalker.Init -> Map `'+result+'` not found';
 end;
 
 procedure TRSWalker.Init(World: String; AScanRatio:Int32=6);
@@ -119,7 +136,7 @@ begin
     Self.Enabled := False;
 end;
 
-procedure TRSWalker.InitEx(Name: String; Slices: TPointArray; PID:Int32=0; AScanRatio:Int32=6);
+procedure TRSWalker.InitEx(Name: String; Slices: TPointArray; AScanRatio:Int32=6);
 var
   BMP: TMufasaBitmap;
   Folder: String;
@@ -128,8 +145,8 @@ begin
   Self.TMFormula := TM_CCOEFF_NORMED;
   Self.SetDefaultValues();
 
-  Folder := FindMapPath(Format(SLICE_FMT, ['', Name, 0,0]));
-  Self.WorldMap := RSWUtils.AssembleSlices(Folder, Name, Slices, Self.FBaseOffset);
+  Folder := FindMapPath(Name, True);
+  Self.WorldMap := RSWUtils.AssembleSlices(Folder + Name, Slices, Self.FBaseOffset);
   Self.WorldSample.Init(client.GetMBitmaps);
   Self.WorldMap.Downsample(Self.ScanRatio, Self.WorldSample);
 
@@ -159,12 +176,11 @@ var
 begin
   W := Large.GetWidth - 1;
   H := Large.GetHeight - 1;
-  Writeln([W,H]);
 
   B := [p.x, p.y, p.x + Sub.GetWidth(), p.y + Sub.GetHeight()];
   B := [B.x1-Area, B.y1-Area, B.x2+Area, B.y2+Area];
   B := [max(0,B.x1),max(0,B.y1),min(W,B.x2),min(H,B.y2)];
-  Writeln(B);
+
   Slice := Large.Copy(B.x1, B.y1, B.x2, B.y2);
   client.getMBitmaps.AddBMP(Slice);
   try

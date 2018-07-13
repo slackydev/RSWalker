@@ -15,7 +15,7 @@ var
   
   SLICE_WIDTH  = 768;
   SLICE_HEIGHT = 768;
-  SLICE_FMT   = '%s%s[%d_%d].png';
+  SLICE_FMT    = '%s/[%d_%d].png';
   
   RSWUtils: TRSWUtils;
 
@@ -130,6 +130,58 @@ begin
   end;
 end;
 
+function TRSWUtils.ClearDotsHeuristc(BMP: TMufasaBitmap; DoFree:Boolean; PTS: TPointArray): TMufasaBitmap; static;
+var
+  search: TPointArray;
+  i,j,w,h,color: Int32;
+  p,q: TPoint;
+  isYellow, isRed, isWhite, isBlack: Boolean;
+begin
+  w :=  bmp.getWidth;
+  h :=  bmp.getHeight;
+  Result := bmp.Copy();
+  client.getMBitmaps.AddBMP(Result);
+
+  search := TPAFromBox(Box(0,0,20,20));
+  search.Sort([10,10]);
+
+  for p in PTS do
+  begin
+    for j:=0 to High(search) do
+    begin
+      q := search[j] + p - Point(10,10);
+      if not((q.x > 0) and (q.y > 0) and (q.x < w) and (q.y < h)) then
+        continue;
+
+      SetColorToleranceSpeed(2);
+      SetToleranceSpeed2Modifiers(0.05,0.05);
+      isWhite := SimilarColors($FFFFFF, BMP.GetPixel(q.x,q.y), 30);
+
+      SetToleranceSpeed2Modifiers(0.05,1);
+      isYellow := SimilarColors($00FFFF, BMP.GetPixel(q.x,q.y), 30);
+      isRed    := SimilarColors($0000FF, BMP.GetPixel(q.x,q.y), 30);
+      isBlack  := BMP.GetPixel(q.x,q.y) = 65536;
+
+      if (not isWhite) and  (not isYellow) and (not isRed) and (not isBlack) then
+      begin
+        color := BMP.GetPixel(q.x,q.y);
+        Result.SetPixel(p.x+1,p.y+0, color);
+        Result.SetPixel(p.x+2,p.y+0, color);
+        Result.DrawBox(Box(p.x,p.y+1,p.x+3,p.y+3), True, color);
+        Result.SetPixel(p.x+1,p.y+4, color);
+        Result.SetPixel(p.x+2,p.y+4, color);
+        break;
+      end;
+    end;
+  end;
+
+  if DoFree then
+    BMP.Free();
+    
+  SetColorToleranceSpeed(1);
+  SetToleranceSpeed2Modifiers(0.2,0.2);
+end;
+
 function TRSWUtils.GetMinimap(Smooth, Sample: Boolean; ratio:Int32=1): TMufasaBitmap; static;
 var
   B: TBox;
@@ -154,8 +206,11 @@ begin
   theta  := Minimap.GetCompassAngle(False);
   TmpRes := GetMufasaBitmap(BitmapFromClient(MM_AREA.x1, MM_AREA.y1, MM_AREA.x2, MM_AREA.y2));
   ClearCorners(TmpRes);
+  Result := RSWUtils.ClearDotsHeuristc(TmpRes, True, Minimap.GetDots([MMDotNPC, MMDotItem, MMDotPlayer]));
+  TmpRes := Result;
+  Result := nil;
 
-  Result.Init(client.GetMBitmaps);
+  Result.Init(client.getMBitmaps);
   TmpRes.RotateBitmapEx(theta, False, Smooth, Result);
   TmpRes.Free();
 
@@ -174,7 +229,7 @@ begin
 end;
 
 
-function TRSWUtils.AssembleSlices(Folder, Name: String; Slices: TPointArray; out Base: TPoint): TMufasaBitmap; static;
+function TRSWUtils.AssembleSlices(Folder: string; Slices: TPointArray; out Base: TPoint): TMufasaBitmap; static;
 var 
   p: TPoint;
   B: TBox;
@@ -187,10 +242,10 @@ begin
   Result.Init(client.GetMBitmaps);
   Result.SetSize(B.Height * SLICE_HEIGHT, B.Width * SLICE_WIDTH);
   for p in slices do
-    if FileExists(Format(SLICE_FMT, [Folder, Name, p.x,p.y])) then
+    if FileExists(Format(SLICE_FMT, [Folder, p.x,p.y])) then
     begin
       slice.Init(client.GetMBitmaps);
-      slice.LoadFromFile(Format(SLICE_FMT, [Folder, Name, p.x,p.y]));
+      slice.LoadFromFile(Format(SLICE_FMT, [Folder, p.x,p.y]));
       slice.DrawTransparent(
         p.y*SLICE_HEIGHT - B.y1*SLICE_HEIGHT,
         p.x*SLICE_WIDTH  - B.x1*SLICE_WIDTH,
